@@ -19,11 +19,11 @@ export function Navigation() {
                         href="/"
                         className="text-xl font-bold bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 text-transparent bg-clip-text"
                     >
-                        Fractal Dreams
+                        auto-render-together
                     </Link>
 
                     {/* Navigation Links */}
-                    <div className="hidden md:flex space-x-8">
+                    <div className="hidden md:flex justify-center items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
                         <Link
                             href="/artbuilder"
                             className={`text-sm ${isActive("/artbuilder")

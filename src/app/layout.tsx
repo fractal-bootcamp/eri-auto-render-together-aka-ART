@@ -1,4 +1,5 @@
-import "~/styles/globals.css";
+import "./globals.css";
+import type { Metadata } from "next";
 
 import { Inter } from "next/font/google";
 
@@ -10,7 +11,7 @@ const inter = Inter({
   variable: "--font-sans",
 });
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Fractal Dreams",
   description: "Create and share holographic art in real-time",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
@@ -23,7 +24,20 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={`font-sans ${inter.variable} bg-gradient-to-br from-black via-purple-900 to-black min-h-screen`}>
+      <head>
+        {/* Preload fonts to avoid FOUT (Flash of Unstyled Text) */}
+        <link
+          rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap"
+          as="style"
+        />
+        <link
+          rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
+          as="style"
+        />
+      </head>
+      <body className="font-cyber">
         <div className="min-h-screen backdrop-blur-sm">
           <Navigation />
           <div className="container mx-auto px-4 pt-16">
