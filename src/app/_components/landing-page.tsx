@@ -1,16 +1,14 @@
 "use client"
 
-import { useState } from "react"
 import { X, Maximize, Minimize } from "lucide-react"
-import LoginForm from "~/app/_components/login-form"
+import { SignedIn, SignedOut } from "@clerk/nextjs"
+import { AuthButtons } from "./AuthButtons"
 
 interface LandingPageProps {
-    onLogin: () => void
     onCloseWindow: () => void
-    isLoggedIn: boolean
 }
 
-export default function LandingPage({ onLogin, onCloseWindow, isLoggedIn }: LandingPageProps) {
+export default function LandingPage({ onCloseWindow }: LandingPageProps) {
     return (
         <div className="relative z-10 w-[800px] max-w-[95vw] bg-black border border-gray-700 rounded-md shadow-2xl">
             {/* Window controls */}
@@ -53,16 +51,22 @@ export default function LandingPage({ onLogin, onCloseWindow, isLoggedIn }: Land
                         Beyond artistic applications, ART&apos;s holographic collaboration environment is revolutionizing fields from architecture to molecular biology, anywhere the ability to collectively manipulate and visualize three-dimensional information can drive innovation through shared spatial understanding.
                     </p>
 
+                    <SignedOut>
+                        <div className="flex justify-center mt-8">
+                            <AuthButtons />
+                        </div>
+                    </SignedOut>
 
-                    <div>
-                        <p className="mb-4">To get started:</p>
-                        <ol className="list-decimal pl-8 space-y-2">
-                            <li>Close this window</li>
-                            <li>Change some numbers</li>
-                            <li>Type Ctrl + Shift + Enter</li>
-                        </ol>
-                    </div>
-                    )}
+                    <SignedIn>
+                        <div>
+                            <p className="mb-4">To get started:</p>
+                            <ol className="list-decimal pl-8 space-y-2">
+                                <li>Close this window</li>
+                                <li>Change some numbers</li>
+                                <li>Type Ctrl + Shift + Enter</li>
+                            </ol>
+                        </div>
+                    </SignedIn>
                 </div>
 
                 <div className="mt-6 border-t border-b border-gray-700 py-2">{Array(30).fill("//").join("")}</div>
