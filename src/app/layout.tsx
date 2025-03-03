@@ -1,18 +1,13 @@
 import "./globals.css";
+import { ClerkProvider, SignedOut } from "@clerk/nextjs";
 import type { Metadata } from "next";
-
-import { Inter } from "next/font/google";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "./_components/Navigation";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
+import { AuthButtons } from "./_components/AuthButtons";
 
 export const metadata: Metadata = {
-  title: "Fractal Dreams",
+  title: "Auto-Render-Together",
   description: "Create and share holographic art in real-time",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
@@ -23,30 +18,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        {/* Preload fonts to avoid FOUT (Flash of Unstyled Text) */}
-        <link
-          rel="preload"
-          href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap"
-          as="style"
-        />
-        <link
-          rel="preload"
-          href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap"
-          as="style"
-        />
-      </head>
-      <body className="font-cyber">
-        <div className="min-h-screen backdrop-blur-sm">
-          <Navigation />
-          <div className="container mx-auto px-4 pt-16">
-            <TRPCReactProvider>
-              {children}
-            </TRPCReactProvider>
+    <ClerkProvider>
+      <html lang="en">
+        <body className="font-mono-cyber bg-cyber-darker min-h-screen text-terminal-green">
+          <div className="min-h-screen relative">
+            <div className="fixed inset-0 bg-cyber-gradient opacity-5 pointer-events-none"></div>
+            <Navigation />
+            <main className="relative z-10 pt-16">
+              <TRPCReactProvider>
+                {children}
+              </TRPCReactProvider>
+            </main>
+
+            {/* Auth Modal */}
+            <SignedOut>
+              <div className="fixed bottom-4 right-4 z-50">
+                <AuthButtons />
+              </div>
+            </SignedOut>
           </div>
-        </div>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

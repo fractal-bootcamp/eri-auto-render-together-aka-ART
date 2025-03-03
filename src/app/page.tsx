@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import LandingPage from "~/app/_components/landing-page"
-import EditorWindow from "~/app/_components/editor-window"
+import { EditorWindow } from "~/app/_components/EditorWindow"
 import CodeEditor from "~/app/_components/code-editor"
 
 export default function Home() {
