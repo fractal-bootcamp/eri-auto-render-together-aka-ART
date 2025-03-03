@@ -1,8 +1,8 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect, useRef } from "react"
+import HolographicEditor from "@/app/_components/holographEditor"
 
 export default function CodeEditor() {
     const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -100,23 +100,47 @@ shape(99,.15,.5).color(0,1,2)
     }
 
     return (
-        <div className="flex h-[calc(100vh-40px)]">
-            {/* Code editor */}
-            <div className="w-1/2 h-full bg-black p-4">
-                <textarea
-                    value={code}
-                    onChange={(e) => setCode(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="w-full h-full bg-black text-green-400 font-mono p-2 resize-none focus:outline-none"
-                    spellCheck="false"
-                />
+        <main className="flex min-h-screen flex-col bg-black">
+            {/* Header */}
+            <div className="w-full p-4 border-b border-neutral-800">
+                <div className="max-w-5xl mx-auto flex items-center justify-between">
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 bg-clip-text text-transparent">
+                        Holographic Hand Drawing
+                    </h1>
+                </div>
             </div>
 
-            {/* Visual output */}
-            <div className="w-1/2 h-full">
-                <canvas ref={canvasRef} className="w-full h-full" />
+            {/* Main content area */}
+            <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
+                {/* Code editor and canvas */}
+                <div className="flex flex-col lg:flex-row w-full lg:w-1/2 h-[50vh] lg:h-full">
+                    {/* Code editor */}
+                    <div className="w-full lg:w-1/2 h-full bg-black p-4">
+                        <textarea
+                            value={code}
+                            onChange={(e) => setCode(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-full h-full bg-black text-green-400 font-mono p-2 resize-none focus:outline-none"
+                            spellCheck="false"
+                        />
+                    </div>
+
+                    {/* Visual output */}
+                    <div className="w-full lg:w-1/2 h-full">
+                        <canvas ref={canvasRef} className="w-full h-full" />
+                    </div>
+                </div>
+
+                {/* Holographic editor */}
+                <div className="w-full lg:w-1/2 h-[50vh] lg:h-full border-t lg:border-t-0 lg:border-l border-neutral-800">
+                    <HolographicEditor />
+                </div>
             </div>
-        </div>
+
+            {/* Footer */}
+            <p className="w-full text-center py-4 text-xs text-neutral-400">
+                Pinch your thumb and index finger together to draw
+            </p>
+        </main>
     )
 }
-
