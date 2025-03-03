@@ -8,11 +8,6 @@ import CodeEditor from "~/app/_components/code-editor"
 export default function Home() {
   const [showLanding, setShowLanding] = useState(true)
   const [showEditor, setShowEditor] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
-
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-  }
 
   const handleCloseWindow = () => {
     setShowLanding(false)
@@ -30,7 +25,7 @@ export default function Home() {
         }}
       />
 
-      {showLanding && <LandingPage onLogin={handleLogin} onCloseWindow={handleCloseWindow} isLoggedIn={isLoggedIn} />}
+      {showLanding && <LandingPage onCloseWindow={handleCloseWindow} />}
 
       {showEditor && (
         <div className="z-10 w-full h-full">
