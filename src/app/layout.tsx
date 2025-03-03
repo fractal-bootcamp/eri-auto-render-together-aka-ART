@@ -1,17 +1,13 @@
-import "~/styles/globals.css";
-
-import { Inter } from "next/font/google";
+import "./globals.css";
+import { ClerkProvider, SignedOut } from "@clerk/nextjs";
+import type { Metadata } from "next";
 
 import { TRPCReactProvider } from "~/trpc/react";
 import { Navigation } from "./_components/Navigation";
+import { AuthButtons } from "./_components/AuthButtons";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-});
-
-export const metadata = {
-  title: "Fractal Dreams",
+export const metadata: Metadata = {
+  title: "Auto-Render-Together",
   description: "Create and share holographic art in real-time",
   icons: [{ rel: "icon", url: "/favicon.ico" }],
 };
@@ -22,17 +18,27 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className={`font-sans ${inter.variable} bg-gradient-to-br from-black via-purple-900 to-black min-h-screen`}>
-        <div className="min-h-screen backdrop-blur-sm">
-          <Navigation />
-          <div className="container mx-auto px-4 pt-16">
-            <TRPCReactProvider>
-              {children}
-            </TRPCReactProvider>
+    <ClerkProvider>
+      <html lang="en">
+        <body className="font-mono-cyber bg-cyber-darker min-h-screen text-terminal-green">
+          <div className="min-h-screen relative">
+            <div className="fixed inset-0 bg-cyber-gradient opacity-5 pointer-events-none"></div>
+            <Navigation />
+            <main className="relative z-10 pt-16">
+              <TRPCReactProvider>
+                {children}
+              </TRPCReactProvider>
+            </main>
+
+            {/* Auth Modal */}
+            <SignedOut>
+              <div className="fixed bottom-4 right-4 z-50">
+                <AuthButtons />
+              </div>
+            </SignedOut>
           </div>
-        </div>
-      </body>
-    </html>
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
