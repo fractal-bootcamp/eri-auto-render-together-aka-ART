@@ -1,38 +1,35 @@
 "use client";
 
-import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@clerk/nextjs";
 
 export function AuthButtons() {
     return (
-        <div className="flex gap-4 items-center">
-            <SignedOut>
-                <SignInButton mode="modal">
-                    <button className="terminal-button">
-                        _login
-                    </button>
-                </SignInButton>
-                <SignUpButton mode="modal">
-                    <button className="terminal-button">
-                        _register
-                    </button>
-                </SignUpButton>
-            </SignedOut>
-
+        <div className="flex items-center gap-4">
             <SignedIn>
                 <UserButton
+                    afterSignOutUrl="/"
                     appearance={{
                         elements: {
-                            rootBox: "terminal-text",
-                            avatarBox: "border-2 border-terminal-green hover:border-terminal-green/60 transition-colors",
-                            userPreviewMainIdentifier: "terminal-text text-terminal-green",
-                            userPreviewSecondaryIdentifier: "terminal-text text-terminal-green/60",
-                            userButtonPopoverCard: "bg-cyber-black border border-terminal-green/20 shadow-terminal",
-                            userButtonPopoverActions: "terminal-text",
-                            userButtonPopoverActionButton: "terminal-text hover:bg-terminal-green/10",
-                        }
+                            userButtonAvatarBox: "border-2 border-pastel-blue hover:border-pastel-pink transition-colors",
+                        },
                     }}
                 />
             </SignedIn>
+
+            <SignedOut>
+                <SignInButton mode="modal">
+                    <button className="px-4 py-2 bg-white hover:bg-pastel-blue/20 text-gray-700 rounded-md border border-pastel-blue/30 shadow-soft transition-colors">
+                        Sign in
+                    </button>
+                </SignInButton>
+
+                <SignUpButton mode="modal">
+                    <button className="px-4 py-2 bg-pastel-blue hover:bg-pastel-blue/80 text-gray-700 rounded-md shadow-soft transition-colors">
+                        Sign up
+                    </button>
+                </SignUpButton>
+            </SignedOut>
         </div>
     );
 } 

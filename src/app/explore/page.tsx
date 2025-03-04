@@ -1,12 +1,12 @@
 export default function ExplorePage() {
     return (
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 py-24">
             <div className="flex justify-between items-center mb-12">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-pink-300 via-purple-300 to-indigo-400 text-transparent bg-clip-text">
-                    Explore Creations
+                <h1 className="text-3xl font-mono text-terminal-gray terminal-heading">
+                    &gt; Explore Creations
                 </h1>
                 <div className="flex gap-4">
-                    <select className="px-4 py-2 rounded-lg bg-black/40 backdrop-blur-lg border border-purple-500/20 text-purple-200 focus:outline-none">
+                    <select className="terminal-input bg-white border border-terminal-blue-dark text-terminal-gray px-4 py-2 rounded">
                         <option value="recent">Most Recent</option>
                         <option value="popular">Most Popular</option>
                         <option value="trending">Trending</option>
@@ -20,25 +20,25 @@ export default function ExplorePage() {
                 {Array.from({ length: 9 }).map((_, i) => (
                     <div
                         key={i}
-                        className="group relative rounded-xl overflow-hidden aspect-video bg-gradient-to-br from-purple-500/20 to-pink-500/20"
+                        className="group relative rounded overflow-hidden aspect-video terminal-card border border-terminal-blue-dark"
                     >
                         {/* Preview Image Placeholder */}
-                        <div className="absolute inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center">
-                            <span className="text-purple-300/60">Preview</span>
+                        <div className="absolute inset-0 bg-white/90 flex items-center justify-center">
+                            <span className="text-terminal-gray font-mono">Preview {i + 1}</span>
                         </div>
 
                         {/* Hover Overlay */}
-                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-4">
+                        <div className="absolute inset-0 bg-white/95 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex flex-col justify-between p-4">
                             <div>
-                                <h3 className="text-xl font-bold text-purple-200">Artwork Title</h3>
-                                <p className="text-purple-300/80 text-sm">by Creator Name</p>
+                                <h3 className="text-xl font-mono font-bold text-terminal-gray">Artwork Title</h3>
+                                <p className="text-terminal-gray/80 font-mono text-sm">by Creator Name</p>
                             </div>
 
                             <div className="flex justify-between items-center">
-                                <button className="px-4 py-2 rounded-lg bg-purple-500/20 text-purple-200 hover:bg-purple-500/40 transition">
+                                <button className="terminal-button-green">
                                     Open
                                 </button>
-                                <button className="p-2 rounded-full bg-purple-500/20 text-purple-200 hover:bg-purple-500/40 transition">
+                                <button className="p-2 rounded bg-terminal-blue/20 text-terminal-gray hover:bg-terminal-blue/40 transition border border-terminal-blue-dark">
                                     ♥ {Math.floor(Math.random() * 100)}
                                 </button>
                             </div>
@@ -49,7 +49,7 @@ export default function ExplorePage() {
 
             {/* Load More Button */}
             <div className="mt-12 flex justify-center">
-                <button className="px-6 py-3 rounded-lg bg-purple-500/20 text-purple-200 hover:bg-purple-500/40 transition">
+                <button className="terminal-button">
                     Load More
                 </button>
             </div>
