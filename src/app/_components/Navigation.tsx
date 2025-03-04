@@ -13,13 +13,13 @@ export function Navigation() {
     };
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 bg-cyber-black/80 backdrop-blur-xl border-b border-terminal-green/20">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-terminal-blue-dark">
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-16">
                     {/* Logo */}
                     <Link
                         href="/"
-                        className="font-cyber text-xl font-bold glitch"
+                        className="font-mono text-xl font-semibold text-terminal-gray"
                     >
                         auto-render-together
                     </Link>
@@ -29,26 +29,26 @@ export function Navigation() {
                         <SignedIn>
                             <Link
                                 href="/artbuilder"
-                                className={`terminal-text ${isActive("/artbuilder")
-                                    ? "text-terminal-green shadow-terminal"
-                                    : "text-terminal-green/60 hover:text-terminal-green hover:shadow-terminal"
-                                    } transition-all duration-300`}
+                                className={`font-mono px-4 py-1 rounded ${isActive("/artbuilder")
+                                    ? "bg-terminal-lime text-terminal-gray border terminal-border-green"
+                                    : "text-terminal-gray hover:bg-terminal-lime/30"
+                                    } transition-colors`}
                             >
                                 &gt; Create
                             </Link>
                             <Link
                                 href="/explore"
-                                className={`terminal-text ${isActive("/explore")
-                                    ? "text-terminal-green shadow-terminal"
-                                    : "text-terminal-green/60 hover:text-terminal-green hover:shadow-terminal"
-                                    } transition-all duration-300`}
+                                className={`font-mono px-4 py-1 rounded ${isActive("/explore")
+                                    ? "bg-terminal-blue text-terminal-gray border terminal-border"
+                                    : "text-terminal-gray hover:bg-terminal-blue/30"
+                                    } transition-colors`}
                             >
                                 &gt; Explore
                             </Link>
                         </SignedIn>
                         <SignedOut>
-                            <span className="terminal-text text-terminal-green/40">
-                                &gt; Sign in to create and explore
+                            <span className="font-mono text-terminal-gray/60">
+                                Sign in to create and explore
                             </span>
                         </SignedOut>
                     </div>
@@ -59,10 +59,13 @@ export function Navigation() {
                     </div>
 
                     {/* Mobile Menu Button */}
-                    <button className="md:hidden terminal-button">
-                        <span className="sr-only">Open menu</span>
-                        &gt;_
-                    </button>
+                    <div className="md:hidden">
+                        <button className="text-terminal-gray hover:text-terminal-gray focus:outline-none">
+                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -72,15 +75,15 @@ export function Navigation() {
                     <SignedIn>
                         <Link
                             href="/artbuilder"
-                            className="terminal-text block px-3 py-2 text-terminal-green/60 hover:text-terminal-green hover:bg-terminal-green/10"
+                            className="font-medium text-gray-600 hover:text-pastel-blue hover:border-b-2 hover:border-pastel-blue/50"
                         >
-                            &gt; Create
+                            Create
                         </Link>
                         <Link
                             href="/explore"
-                            className="terminal-text block px-3 py-2 text-terminal-green/60 hover:text-terminal-green hover:bg-terminal-green/10"
+                            className="font-medium text-gray-600 hover:text-pastel-blue hover:border-b-2 hover:border-pastel-blue/50"
                         >
-                            &gt; Explore
+                            Explore
                         </Link>
                     </SignedIn>
                     <SignedOut>

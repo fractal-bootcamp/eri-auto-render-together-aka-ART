@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 import { Camera, Trash2, Download, Palette, Zap, Hand, Sparkles, X, Bug } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+// Import MediaPipe dependencies
+import { FilesetResolver, HandLandmarker } from "@mediapipe/tasks-vision"
 
 // Types for our drawing points
 interface Point {
@@ -56,27 +58,25 @@ export default function HolographicEditor() {
         const initializeHandLandmarker = async () => {
             try {
                 setTrackingStatus("initializing")
+                console.log("Initializing hand tracking...")
 
                 // Load the MediaPipe libraries dynamically
-                const { FilesetResolver, HandLandmarker } = await import("@mediapipe/tasks-vision")
-
                 const vision = await FilesetResolver.forVisionTasks(
-                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm",
+                    "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
                 )
 
-                const handLandmarker = await HandLandmarker.createFromOptions(vision, {
+                const handLandmarkerInstance = await HandLandmarker.createFromOptions(vision, {
                     baseOptions: {
-                        modelAssetPath:
-                            "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-                        delegate: "GPU",
+                        modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+                        delegate: "GPU"
                     },
                     numHands: 1,
-                    runningMode: "VIDEO",
+                    runningMode: "VIDEO" // For debugging you might try "IMAGE"
                 })
 
-                setHandLandmarker(handLandmarker)
+                setHandLandmarker(handLandmarkerInstance)
                 setTrackingStatus("ready")
-                console.log("Hand tracking initialized successfully")
+                console.log("HandLandmarker Loaded:", handLandmarkerInstance)
             } catch (error) {
                 console.error("Error initializing hand tracking:", error)
                 setTrackingStatus("error")
@@ -95,21 +95,24 @@ export default function HolographicEditor() {
                 video: {
                     width: { ideal: 1280 },
                     height: { ideal: 720 },
-                    facingMode: "user",
-                },
+                    facingMode: "user"
+                }
             }
 
             const stream = await navigator.mediaDevices.getUserMedia(constraints)
             videoRef.current.srcObject = stream
-            videoRef.current.play()
-            setCameraActive(true)
 
-            // Start detection loop once video is playing
+            // Wait for the video feed to be loaded before starting detection
             videoRef.current.onloadeddata = () => {
+                console.log("Camera feed loaded, starting hand detection...")
                 detectHands()
             }
+
+            await videoRef.current.play()
+            setCameraActive(true)
         } catch (error) {
             console.error("Error accessing camera:", error)
+            setTrackingStatus("error")
         }
     }
 
@@ -119,16 +122,15 @@ export default function HolographicEditor() {
 
         const stream = videoRef.current.srcObject as MediaStream
         const tracks = stream.getTracks()
-
         tracks.forEach((track) => track.stop())
         videoRef.current.srcObject = null
         setCameraActive(false)
     }
 
-    // Detect hands and track index finger
-    const detectHands = () => {
+    // Detect hands and track index finger (async)
+    const detectHands = async () => {
         if (!handLandmarker || !videoRef.current || !canvasRef.current || !overlayCanvasRef.current) {
-            requestAnimationFrame(detectHands)
+            console.warn("Hand detection loop stopped due to missing references.")
             return
         }
 
@@ -139,7 +141,7 @@ export default function HolographicEditor() {
         const overlayCtx = overlayCanvas.getContext("2d")
 
         if (!ctx || !overlayCtx) {
-            requestAnimationFrame(detectHands)
+            console.warn("Canvas contexts not available.")
             return
         }
 
@@ -166,7 +168,8 @@ export default function HolographicEditor() {
 
             setTrackingStatus("detecting")
             const startTimeMs = performance.now()
-            const results = handLandmarker.detectForVideo(video, startTimeMs)
+            const results = await handLandmarker.detectForVideo(video, startTimeMs)
+            console.log("Detection Results:", results)
 
             // Clear overlay canvas for hand landmarks
             overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height)
@@ -175,12 +178,12 @@ export default function HolographicEditor() {
             const handsDetected = results.landmarks && results.landmarks.length > 0
             setHandDetected(handsDetected)
 
-            if (results.landmarks && results.landmarks.length > 0) {
+            if (handsDetected) {
                 const landmarks = results.landmarks[0]
                 // Store landmarks for debug view
                 setCurrentHandLandmarks(landmarks)
 
-                // Draw hand landmarks for debugging
+                // Draw hand landmarks for debugging if camera overlay is enabled
                 if (showCamera) {
                     drawConnectors(
                         overlayCtx,
@@ -236,12 +239,11 @@ export default function HolographicEditor() {
 
                 setPointerPosition({ x: indexX, y: indexY })
 
-                // Check if index finger is extended (by comparing with middle knuckle)
+                // Check if index finger is extended (comparing with middle knuckle)
                 const indexMCP = landmarks[5]
                 const indexPIP = landmarks[6]
                 const indexDIP = landmarks[7]
 
-                // Calculate if finger is pointing forward (extended)
                 const isExtended = indexTip.z < indexDIP.z && indexDIP.z < indexPIP.z && indexPIP.z < indexMCP.z
 
                 if (isExtended && !isDrawing) {
@@ -257,7 +259,6 @@ export default function HolographicEditor() {
                         color: color,
                         timestamp: Date.now(),
                     }
-
                     setCurrentLine((prev) => [...prev, point])
                 } else if (!isExtended && isDrawing) {
                     // End the line when finger retracts
@@ -272,15 +273,16 @@ export default function HolographicEditor() {
             }
         }
 
-        // Draw current line
+        // Draw current line on the drawing canvas
         if (currentLine.length > 0) {
             drawHolographicLine(ctx, currentLine, color)
         }
 
+        // Continue the detection loop
         requestAnimationFrame(detectHands)
     }
 
-    // Calculate distance between two points
+    // Calculate distance between two points (utility)
     const calculateDistance = (x1: number, y1: number, x2: number, y2: number) => {
         return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2))
     }
@@ -297,52 +299,73 @@ export default function HolographicEditor() {
 
         for (const connection of connections) {
             const [start, end] = connection
-            ctx.beginPath()
-            ctx.moveTo(landmarks[start].x * ctx.canvas.width, landmarks[start].y * ctx.canvas.height)
-            ctx.lineTo(landmarks[end].x * ctx.canvas.width, landmarks[end].y * ctx.canvas.height)
-            ctx.stroke()
+            if (
+                start !== undefined &&
+                end !== undefined &&
+                landmarks[start] &&
+                landmarks[end] &&
+                landmarks[start].x !== undefined &&
+                landmarks[start].y !== undefined &&
+                landmarks[end].x !== undefined &&
+                landmarks[end].y !== undefined
+            ) {
+                ctx.beginPath()
+                ctx.moveTo(landmarks[start].x * ctx.canvas.width, landmarks[start].y * ctx.canvas.height)
+                ctx.lineTo(landmarks[end].x * ctx.canvas.width, landmarks[end].y * ctx.canvas.height)
+                ctx.stroke()
+            }
         }
     }
 
     // Draw holographic line with glow effect
     const drawHolographicLine = (ctx: CanvasRenderingContext2D, points: Point[], color: string) => {
-        if (points.length < 2) return
+        if (!points.length) return
 
-        // Draw the glow effect
-        ctx.save()
-        ctx.shadowBlur = 20
-        ctx.shadowColor = color
+        // Set up the line style
         ctx.strokeStyle = color
         ctx.lineWidth = 2
         ctx.lineCap = "round"
         ctx.lineJoin = "round"
 
+        // Add glow effect
+        ctx.shadowBlur = 15
+        ctx.shadowColor = color
+
         ctx.beginPath()
-        ctx.moveTo(points[0].x, points[0].y)
+        if (points[0]) {
+            ctx.moveTo(points[0].x, points[0].y)
+        }
 
         for (let i = 1; i < points.length; i++) {
             const point = points[i]
             const prevPoint = points[i - 1]
 
-            // Create smooth curves between points
-            const midX = (prevPoint.x + point.x) / 2
-            const midY = (prevPoint.y + point.y) / 2
+            if (point && prevPoint) {
+                // Create smooth curves between points
+                const midX = (prevPoint.x + point.x) / 2
+                const midY = (prevPoint.y + point.y) / 2
 
-            ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, midX, midY)
+                ctx.quadraticCurveTo(prevPoint.x, prevPoint.y, midX, midY)
+            }
         }
 
         if (points.length > 1) {
             const lastPoint = points[points.length - 1]
-            ctx.lineTo(lastPoint.x, lastPoint.y)
+            if (lastPoint) {
+                ctx.lineTo(lastPoint.x, lastPoint.y)
+            }
         }
 
         ctx.stroke()
-        ctx.restore()
 
-        // Draw sparkle effects at points
+        // Add sparkles along the line for a holographic effect
+        ctx.shadowBlur = 0
+
         for (let i = 0; i < points.length; i += 3) {
             const point = points[i]
-            drawSparkle(ctx, point.x, point.y, color)
+            if (point) {
+                drawSparkle(ctx, point.x, point.y, color)
+            }
         }
     }
 
@@ -378,7 +401,7 @@ export default function HolographicEditor() {
         ctx.restore()
     }
 
-    // Render all lines
+    // Render all lines on the drawing canvas
     useEffect(() => {
         if (!canvasRef.current) return
 
@@ -508,7 +531,13 @@ export default function HolographicEditor() {
 
                         <div className="flex items-center gap-2 w-32">
                             <Zap className="h-4 w-4 text-neutral-400" />
-                            <Slider value={[brushSize]} min={5} max={30} step={1} onValueChange={(value) => setBrushSize(value[0])} />
+                            <Slider
+                                value={[brushSize]}
+                                min={5}
+                                max={30}
+                                step={1}
+                                onValueChange={(value) => { if (value[0] !== undefined) setBrushSize(value[0]) }}
+                            />
                         </div>
 
                         <div className="h-6 border-l border-neutral-600 mx-1" />

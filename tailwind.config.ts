@@ -1,5 +1,6 @@
 import { type Config } from "tailwindcss";
 import { fontFamily } from "tailwindcss/defaultTheme";
+import plugin from 'tailwindcss/plugin';
 
 export default {
   darkMode: ["class"],
@@ -7,10 +8,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Orbitron", ...fontFamily.sans],
-        cyber: ["Orbitron", "sans-serif"],
-        "mono-cyber": ["Share Tech Mono", "monospace"],
-        mono: ['Share Tech Mono', 'monospace'],
+        sans: ["IBM Plex Mono", ...fontFamily.sans],
+        mono: ["IBM Plex Mono", "Space Mono", "monospace"],
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -20,6 +19,19 @@ export default {
       colors: {
         background: 'hsl(var(--background))',
         foreground: 'hsl(var(--foreground))',
+        terminal: {
+          blue: '#A0D2EB',
+          'blue-dark': '#8BBBD9',
+          green: '#B8E0D2',
+          'green-bright': '#ADDFB3',
+          lime: '#D5ECC2',
+          pink: '#FFD1DC',
+          lavender: '#E6E6FA',
+          peach: '#FFDAB9',
+          yellow: '#FFEFD5',
+          gray: '#5A5A5A',
+          'light-gray': '#D0D0D0',
+        },
         card: {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))'
@@ -51,46 +63,33 @@ export default {
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
-        chart: {
-          '1': 'hsl(var(--chart-1))',
-          '2': 'hsl(var(--chart-2))',
-          '3': 'hsl(var(--chart-3))',
-          '4': 'hsl(var(--chart-4))',
-          '5': 'hsl(var(--chart-5))'
-        },
-        terminal: {
-          black: '#000000',
-          green: '#00ff00',
-          blue: '#0066ff',
-          purple: '#7928CA',
-          pink: '#FF0080',
-          cyan: '#00fffc',
-          yellow: '#fffc00',
-          magenta: '#fc00ff',
-        },
-        cyber: {
-          black: '#080808',
-          darker: '#000000',
-          dark: '#1a1a1a',
-          primary: '#7928CA',
-          secondary: '#FF0080',
-          accent: '#00ff00',
-        },
       },
       boxShadow: {
-        'terminal': '0 0 10px rgba(0, 255, 0, 0.2)',
-        'neon': '0 0 5px theme(colors.terminal.green), 0 0 20px theme(colors.terminal.green)',
-        'cyber': '0 0 10px theme(colors.cyber.primary), 0 0 20px theme(colors.cyber.secondary)',
+        'terminal': '0 2px 6px rgba(0, 0, 0, 0.05)',
       },
       animation: {
-        'terminal-flicker': 'flicker 5s infinite',
-        'glitch': 'glitch 725ms infinite',
+        'cursor-blink': 'blink 1s step-end infinite',
       },
-      backgroundImage: {
-        'cyber-gradient': 'linear-gradient(45deg, #7928CA, #FF0080)',
-        'terminal-glow': 'radial-gradient(circle at center, rgba(0, 255, 0, 0.1) 0%, rgba(0, 0, 0, 0.2) 100%)',
+      keyframes: {
+        blink: {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0' },
+        },
       },
-    }
+    },
   },
-  plugins: [],
+  plugins: [
+    require("tailwindcss-animate"),
+    plugin(function ({ addUtilities }) {
+      const newUtilities = {
+        '.terminal-border': {
+          border: '1px solid #8BBBD9',
+        },
+        '.terminal-border-green': {
+          border: '1px solid #ADDFB3',
+        },
+      }
+      addUtilities(newUtilities)
+    }),
+  ],
 } satisfies Config;

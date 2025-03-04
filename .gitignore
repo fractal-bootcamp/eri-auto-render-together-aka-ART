@@ -1,5 +1,11 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# scratch files for development
+/scratch/
+scratch.tsx
+
+
+
 # dependencies
 /node_modules
 /.pnp

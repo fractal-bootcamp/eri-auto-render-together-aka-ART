@@ -20,23 +20,22 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className="font-mono-cyber bg-cyber-darker min-h-screen text-terminal-green">
-          <div className="min-h-screen relative">
-            <div className="fixed inset-0 bg-cyber-gradient opacity-5 pointer-events-none"></div>
+        <head>
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+          <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+          <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+        </head>
+        <body className="font-sans bg-pastel-lavender text-gray-700">
+          <TRPCReactProvider>
             <Navigation />
-            <main className="relative z-10 pt-16">
-              <TRPCReactProvider>
-                {children}
-              </TRPCReactProvider>
-            </main>
-
-            {/* Auth Modal */}
             <SignedOut>
-              <div className="fixed bottom-4 right-4 z-50">
+              <div className="fixed top-4 right-4 z-50">
                 <AuthButtons />
               </div>
             </SignedOut>
-          </div>
+            {children}
+          </TRPCReactProvider>
         </body>
       </html>
     </ClerkProvider>

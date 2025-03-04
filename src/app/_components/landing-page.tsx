@@ -30,8 +30,8 @@ export default function LandingPage({ onCloseWindow }: LandingPageProps) {
             {/* Content */}
             <div className="p-8 bg-black text-white">
                 <div className="mb-8">
-                    <h1 className="text-5xl font-bold mb-2">ART: studies in holography</h1>
-                    <h2 className="text-xl tracking-wider">auto-render-together</h2>
+                    <h1 className="text-5xl font-bold mb-2">ART: Artistic Reality Terminal</h1>
+                    <h2 className="text-xl tracking-wider">auto-render-together with assigned role templates</h2>
                 </div>
 
                 <div className="my-6 border-t border-b border-gray-700 py-2">{Array(30).fill("//").join("")}</div>
