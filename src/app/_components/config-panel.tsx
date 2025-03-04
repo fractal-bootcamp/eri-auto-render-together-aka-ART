@@ -3,7 +3,6 @@
 import type React from "react"
 
 import { useState, useEffect, useRef } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
@@ -14,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
-type Role = "harmonist" | "modulation_engineer" | "transformation_architect"
+
 
 // Define the HarmonistConfig type for better type safety
 interface HarmonistConfig {
@@ -32,8 +31,14 @@ interface HarmonistConfig {
     }
 }
 
+// Define the keys for tuning systems to avoid type errors
+type TuningSystemKey = 'Pythagorean' | 'Just Major' | 'Just Minor' | 'Quarter-comma Meantone' | '5-limit' | '7-limit';
+
+// Define the keys for notes to avoid type errors
+type NoteKey = 'C' | 'C#' | 'D' | 'D#' | 'E' | 'F' | 'F#' | 'G' | 'G#' | 'A' | 'A#' | 'B';
+
 // Just intonation ratios
-const justIntonationRatios = {
+const justIntonationRatios: Record<TuningSystemKey, number[]> = {
     Pythagorean: [1, 9 / 8, 81 / 64, 4 / 3, 3 / 2, 27 / 16, 243 / 128, 2],
     "Just Major": [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2],
     "Just Minor": [1, 9 / 8, 6 / 5, 4 / 3, 3 / 2, 8 / 5, 9 / 5, 2],
@@ -51,7 +56,7 @@ interface ConfigPanelProps {
 }
 
 export default function ConfigPanel({ onConfigChange, initialConfig }: ConfigPanelProps) {
-    const [activeRole, setActiveRole] = useState<Role>("harmonist")
+
     const [configText, setConfigText] = useState("")
     const [showJson, setShowJson] = useState(false)
     const [isPlaying, setIsPlaying] = useState(true)
@@ -68,8 +73,8 @@ export default function ConfigPanel({ onConfigChange, initialConfig }: ConfigPan
     const [harmonistConfig, setHarmonistConfig] = useState<HarmonistConfig>(initialConfig)
 
     // Just intonation settings
-    const [tuningSystem, setTuningSystem] = useState("Just Major")
-    const [rootNote, setRootNote] = useState("A")
+    const [tuningSystem, setTuningSystem] = useState<TuningSystemKey>("Just Major")
+    const [rootNote, setRootNote] = useState<NoteKey>("A")
     const [octave, setOctave] = useState(4)
     const [selectedHarmonics, setSelectedHarmonics] = useState([1, 3, 5, 7])
 
@@ -217,9 +222,6 @@ void main() {
         setVertexShaderCode(defaultVertexShader)
     }, [])
 
-    const handleRoleChange = (role: Role) => {
-        setActiveRole(role)
-    }
 
     const handleImportConfig = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
@@ -228,22 +230,28 @@ void main() {
         const reader = new FileReader()
         reader.onload = (event) => {
             try {
-                const json = JSON.parse(event.target?.result as string)
+                const json = JSON.parse(event.target?.result as string) as Record<string, unknown>
                 setConfigText(JSON.stringify(json, null, 2))
 
                 // Update harmonist config if available
-                if (json.harmonic_parameters) {
-                    const params = json.harmonic_parameters
+                if (json.harmonic_parameters && typeof json.harmonic_parameters === 'object') {
+                    const params = json.harmonic_parameters as Record<string, unknown>
                     setHarmonistConfig((prev) => ({
                         ...prev,
-                        baseFrequency: params.base_frequency || prev.baseFrequency,
-                        harmonicRatio: params.harmonic_ratio || prev.harmonicRatio,
-                        waveNumber: params.wave_number || prev.waveNumber,
-                        damping: params.damping || prev.damping,
-                        amplitude: params.amplitude || prev.amplitude,
-                        mode: params.mode || prev.mode,
-                        colorScheme: params.color_scheme || prev.colorScheme,
-                        resolution: params.resolution || prev.resolution,
+                        baseFrequency: typeof params.base_frequency === 'number' ? params.base_frequency : prev.baseFrequency,
+                        harmonicRatio: typeof params.harmonic_ratio === 'number' ? params.harmonic_ratio : prev.harmonicRatio,
+                        waveNumber: typeof params.wave_number === 'number' ? params.wave_number : prev.waveNumber,
+                        damping: typeof params.damping === 'number' ? params.damping : prev.damping,
+                        amplitude: typeof params.amplitude === 'number' ? params.amplitude : prev.amplitude,
+                        mode: typeof params.mode === 'string' &&
+                            (params.mode === 'circular' || params.mode === 'rectangular' || params.mode === 'triangular')
+                            ? params.mode as "circular" | "rectangular" | "triangular"
+                            : prev.mode,
+                        colorScheme: typeof params.color_scheme === 'string' &&
+                            (params.color_scheme === 'blue' || params.color_scheme === 'rainbow' || params.color_scheme === 'monochrome')
+                            ? params.color_scheme as "blue" | "rainbow" | "monochrome"
+                            : prev.colorScheme,
+                        resolution: typeof params.resolution === 'number' ? params.resolution : prev.resolution,
                     }))
                 }
             } catch (error) {
@@ -258,7 +266,7 @@ void main() {
             meta: {
                 id: `harmonic_pattern_${Math.floor(Math.random() * 1000)}`,
                 version: "1.0.0",
-                contributors: [{ id: "user_1", role: "harmonist" }],
+                contributors: [{ id: "user_1", }],
                 tags: ["chladni", "cymatics", "just-intonation"],
             },
             harmonic_parameters: {
@@ -292,7 +300,7 @@ void main() {
 
     const applyTuningSystem = () => {
         // Calculate base frequency from root note and octave
-        const noteToFrequency = {
+        const noteToFrequency: Record<NoteKey, number> = {
             C: 261.63,
             "C#": 277.18,
             D: 293.66,
@@ -646,38 +654,12 @@ vec2 hash22(vec2 p) {
                             </div>
                         </div>
                     )}
-                    <Tabs defaultValue="harmonist" className="flex-1 flex flex-col">
-                        <TabsList className="grid grid-cols-3 mx-4 mt-4">
-                            <TabsTrigger
-                                value="harmonist"
-                                onClick={() => handleRoleChange("harmonist")}
-                                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                            >
-                                Harmonist
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="modulation"
-                                onClick={() => handleRoleChange("modulation_engineer")}
-                                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                                disabled
-                            >
-                                Modulation
-                            </TabsTrigger>
-                            <TabsTrigger
-                                value="transformation"
-                                onClick={() => handleRoleChange("transformation_architect")}
-                                className="data-[state=active]:bg-blue-600 data-[state=active]:text-white"
-                                disabled
-                            >
-                                Transform
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="harmonist" className="flex-1 p-4 overflow-y-auto">
+                    <div className="flex-1 flex flex-col">
+                        <div className="flex-1 p-4 overflow-y-auto">
                             <div className="space-y-4">
                                 {/* Presets */}
                                 <div>
-                                    <Label>Chladni Pattern Presets</Label>
+                                    <Label>Pattern Presets</Label>
                                     <div className="grid grid-cols-3 gap-2 mt-1">
                                         <Button
                                             variant="outline"
@@ -711,7 +693,7 @@ vec2 hash22(vec2 p) {
                                             <Label htmlFor="tuning-system" className="text-xs">
                                                 Tuning System
                                             </Label>
-                                            <Select value={tuningSystem} onValueChange={setTuningSystem}>
+                                            <Select value={tuningSystem} onValueChange={(value: TuningSystemKey) => setTuningSystem(value)}>
                                                 <SelectTrigger id="tuning-system" className="bg-white">
                                                     <SelectValue placeholder="Select tuning" />
                                                 </SelectTrigger>
@@ -729,7 +711,7 @@ vec2 hash22(vec2 p) {
                                                 Root Note
                                             </Label>
                                             <div className="flex gap-2">
-                                                <Select value={rootNote} onValueChange={setRootNote}>
+                                                <Select value={rootNote} onValueChange={(value: NoteKey) => setRootNote(value)}>
                                                     <SelectTrigger id="root-note" className="bg-white">
                                                         <SelectValue placeholder="Note" />
                                                     </SelectTrigger>
@@ -977,21 +959,7 @@ vec2 hash22(vec2 p) {
                                     </div>
                                 </div>
                             </div>
-                        </TabsContent>
-
-                        <TabsContent value="modulation" className="flex-1 p-4 overflow-y-auto">
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-gray-500 italic">Modulation Engineer role will be available in a future update.</p>
-                            </div>
-                        </TabsContent>
-
-                        <TabsContent value="transformation" className="flex-1 p-4 overflow-y-auto">
-                            <div className="flex items-center justify-center h-full">
-                                <p className="text-gray-500 italic">
-                                    Transformation Architect role will be available in a future update.
-                                </p>
-                            </div>
-                        </TabsContent>
+                        </div>
 
                         <div className="p-4 border-t border-gray-300 mt-auto">
                             <div className="flex justify-between">
@@ -1028,7 +996,7 @@ vec2 hash22(vec2 p) {
                                 </Button>
                             </div>
                         </div>
-                    </Tabs>
+                    </div>
                 </>
             )}
         </div>

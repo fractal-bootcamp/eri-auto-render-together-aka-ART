@@ -38,7 +38,7 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
 
     // Default harmonist configuration
     const [harmonistConfig, setHarmonistConfig] = useState<HarmonistConfig>(
-        config || {
+        config ?? {
             baseFrequency: 432,
             harmonicRatio: 1.618,
             waveNumber: 8,
@@ -88,17 +88,17 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
 
         // Use custom shader code if available, otherwise use default
         const vertexShader =
-            harmonistConfig.shaderCode?.vertexShader ||
+            harmonistConfig.shaderCode?.vertexShader ??
             `
       varying vec2 vUv;
       void main() {
         vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        gl_Position = vec4(position, 1.0);
       }
     `
 
         const fragmentShader =
-            harmonistConfig.shaderCode?.fragmentShader ||
+            harmonistConfig.shaderCode?.fragmentShader ??
             `
       uniform float time;
       uniform vec2 resolution;
@@ -252,7 +252,9 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             animationFrameId = requestAnimationFrame(animate)
 
             // Update uniforms
-            material.uniforms.time.value += 1.0
+            if (material.uniforms.time !== undefined) {
+                material.uniforms.time.value += 1.0
+            }
 
             rendererRef.current.render(sceneRef.current, cameraRef.current)
         }
@@ -268,7 +270,9 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             cameraRef.current.updateProjectionMatrix()
 
             rendererRef.current.setSize(width, height)
-            material.uniforms.resolution.value.set(width, height)
+            if (material.uniforms.resolution !== undefined) {
+                material.uniforms.resolution.value.set(width, height)
+            }
         }
 
         window.addEventListener("resize", handleResize)
@@ -295,21 +299,41 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         harmonistConfig.mode,
         harmonistConfig.waveNumber,
         harmonistConfig.shaderCode,
-    ]),
-        // Apply configuration updates when harmonistConfig changes
-        useEffect(() => {
-            if (materialRef.current) {
+    ])
+    useEffect(() => {
+        if (materialRef.current && materialRef.current.uniforms) {
+            // Update uniforms with current configuration
+            if (materialRef.current.uniforms.baseFrequency?.value !== undefined) {
                 materialRef.current.uniforms.baseFrequency.value = harmonistConfig.baseFrequency
+            }
+
+            if (materialRef.current.uniforms.harmonicRatio?.value !== undefined) {
                 materialRef.current.uniforms.harmonicRatio.value = harmonistConfig.harmonicRatio
+            }
+
+            if (materialRef.current.uniforms.waveNumber?.value !== undefined) {
                 materialRef.current.uniforms.waveNumber.value = harmonistConfig.waveNumber
+            }
+
+            if (materialRef.current.uniforms.damping?.value !== undefined) {
                 materialRef.current.uniforms.damping.value = harmonistConfig.damping
+            }
+
+            if (materialRef.current.uniforms.amplitude?.value !== undefined) {
                 materialRef.current.uniforms.amplitude.value = harmonistConfig.amplitude
+            }
+
+            if (materialRef.current.uniforms.mode?.value !== undefined) {
                 materialRef.current.uniforms.mode.value =
                     harmonistConfig.mode === "circular" ? 0 : harmonistConfig.mode === "rectangular" ? 1 : 2
+            }
+
+            if (materialRef.current.uniforms.colorScheme?.value !== undefined) {
                 materialRef.current.uniforms.colorScheme.value =
                     harmonistConfig.colorScheme === "blue" ? 0 : harmonistConfig.colorScheme === "rainbow" ? 1 : 2
             }
-        }, [harmonistConfig])
+        }
+    }, [harmonistConfig])
 
     const exportCanvas = () => {
         if (!canvasRef.current || !rendererRef.current) return
@@ -425,7 +449,7 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             // Update Three.js renderer size
             if (rendererRef.current && canvasRef.current) {
                 rendererRef.current.setSize(newWidth, newHeight)
-                if (materialRef.current) {
+                if (materialRef.current && materialRef.current.uniforms && materialRef.current.uniforms.resolution !== undefined) {
                     materialRef.current.uniforms.resolution.value.set(newWidth, newHeight)
                 }
                 if (cameraRef.current) {
@@ -505,11 +529,10 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
                     const newZoom = (newWidth / baseSize) * 100
                     setZoomLevel(Math.round(newZoom))
                 }
-
                 // Update Three.js renderer size
                 if (rendererRef.current && canvasRef.current) {
                     rendererRef.current.setSize(newWidth, newHeight)
-                    if (materialRef.current) {
+                    if (materialRef.current && materialRef.current.uniforms && materialRef.current.uniforms.resolution) {
                         materialRef.current.uniforms.resolution.value.set(newWidth, newHeight)
                     }
                     if (cameraRef.current) {
@@ -531,6 +554,34 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
                 x: e.clientX,
                 y: e.clientY,
             })
+        }
+
+        // Update canvas size based on zoom level
+        if (materialRef.current?.uniforms?.resolution !== undefined) {
+            const width = canvasRef.current?.offsetWidth ?? 0
+            const height = canvasRef.current?.offsetHeight ?? 0
+
+            const newWidth = width * zoomLevel / 100
+            const newHeight = height * zoomLevel / 100
+
+            if (rendererRef.current) {
+                rendererRef.current.setSize(newWidth, newHeight)
+            }
+
+            materialRef.current.uniforms.resolution.value.set(newWidth, newHeight)
+        }
+
+        // Update uniforms with mouse position
+        if (materialRef.current?.uniforms?.resolution && materialRef.current.uniforms.mousePosition) {
+            const width = materialRef.current.uniforms.resolution.value.x
+            const height = materialRef.current.uniforms.resolution.value.y
+
+            // Calculate normalized mouse position
+            const mouseX = (e.clientX - canvasRef.current!.getBoundingClientRect().left) / width
+            const mouseY = 1.0 - (e.clientY - canvasRef.current!.getBoundingClientRect().top) / height
+
+            // Update mouse position uniform
+            materialRef.current.uniforms.mousePosition.value.set(mouseX, mouseY)
         }
     }
 

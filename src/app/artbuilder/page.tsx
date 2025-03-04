@@ -1,60 +1,59 @@
-import Link from "next/link";
+"use client"
 
-const ROOM_TYPES = [
-    {
-        name: "Basic Studio",
-        description: "Perfect for solo creation and experimentation",
-        type: "BASIC",
-        features: ["Real-time code editing", "Basic effects", "Personal workspace"],
-    },
-    {
-        name: "Pro Collaboration",
-        description: "Create and collaborate with friends",
-        type: "PRO",
-        features: ["Multiple participants", "Chat system", "Shared workspace", "Music integration"],
-    },
-    {
-        name: "Premium Experience",
-        description: "Ultimate creative environment",
-        type: "PREMIUM",
-        features: ["Advanced effects", "Multiple view modes", "Recording capabilities", "Premium assets"],
-    },
-];
+import { useState, useCallback, useRef } from "react"
+import ArtCanvas from "@/app/_components/art-canvas"
+import ConfigPanel from "@/app/_components/config-panel"
+import TerminalHeader from "@/app/_components/terminal-header"
 
-export default function ArtBuilderPage() {
+// Define the HarmonistConfig type for better type safety
+interface HarmonistConfig {
+    baseFrequency: number
+    harmonicRatio: number
+    waveNumber: number
+    damping: number
+    amplitude: number
+    mode: "circular" | "rectangular" | "triangular"
+    colorScheme: "blue" | "rainbow" | "monochrome"
+    resolution: number
+    shaderCode?: {
+        fragmentShader: string
+        vertexShader: string
+    }
+}
+
+export default function Home() {
+    // Use useRef for the initial config to avoid re-renders
+    const initialConfig = useRef<HarmonistConfig>({
+        baseFrequency: 432,
+        harmonicRatio: 1.618,
+        waveNumber: 8,
+        damping: 0.02,
+        amplitude: 0.8,
+        mode: "circular",
+        colorScheme: "blue",
+        resolution: 256,
+        shaderCode: undefined,
+    }).current
+
+    const [harmonistConfig, setHarmonistConfig] = useState<HarmonistConfig>(initialConfig)
+
+    // Use useCallback to memoize the handler function
+    const handleConfigChange = useCallback((config: HarmonistConfig) => {
+        setHarmonistConfig(config)
+    }, [])
+
     return (
-        <div className="container mx-auto px-4 py-24">
-            <h1 className="text-3xl font-mono text-terminal-gray text-center mb-12 terminal-heading">
-                &gt; Choose Your Creative Space
-            </h1>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                {ROOM_TYPES.map((room, index) => (
-                    <div
-                        key={room.type}
-                        className="relative"
-                    >
-                        <div className={`p-6 bg-white rounded terminal-card border ${index === 0 ? 'border-terminal-blue-dark' : index === 1 ? 'border-terminal-lime' : 'border-terminal-blue'} h-full flex flex-col`}>
-                            <h3 className="text-2xl font-mono font-bold text-terminal-gray mb-2">{room.name}</h3>
-                            <p className="text-terminal-gray/80 mb-4 font-mono">{room.description}</p>
-                            <ul className="space-y-2 mb-8 flex-grow">
-                                {room.features.map((feature) => (
-                                    <li key={feature} className="flex items-center text-terminal-gray/80 font-mono">
-                                        <span className="mr-2 text-terminal-blue-dark">›</span>
-                                        {feature}
-                                    </li>
-                                ))}
-                            </ul>
-                            <Link
-                                href={`/artbuilder/${room.type.toLowerCase()}`}
-                                className={`terminal-button${index === 1 ? '-green' : ''} text-center`}
-                            >
-                                Enter Room
-                            </Link>
-                        </div>
-                    </div>
-                ))}
+        <main className="min-h-screen bg-[#f5f0e6] flex flex-col">
+            <TerminalHeader />
+            <div className="flex flex-col md:flex-row flex-1 p-4 gap-4">
+                <div className="w-full md:w-2/3 h-[70vh] md:h-auto flex items-center justify-center">
+                    <ArtCanvas config={harmonistConfig} />
+                </div>
+                <div className="w-full md:w-1/3 bg-[#f5f0e6] border border-gray-300 rounded-md">
+                    <ConfigPanel onConfigChange={handleConfigChange} initialConfig={initialConfig} />
+                </div>
             </div>
-        </div>
-    );
-} 
+        </main>
+    )
+}
+
