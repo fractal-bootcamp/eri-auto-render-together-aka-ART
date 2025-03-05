@@ -89,6 +89,77 @@ export default function ConfigPanel({ onConfigChange, initialConfig }: ConfigPan
         onConfigChange(harmonistConfig)
     }, [harmonistConfig, onConfigChange])
 
+    // Update local state when initialConfig changes
+    useEffect(() => {
+        console.log("ConfigPanel received initialConfig:", initialConfig)
+
+        // Ensure we have all required properties before updating
+        if (
+            initialConfig.baseFrequency !== undefined &&
+            initialConfig.harmonicRatio !== undefined &&
+            initialConfig.waveNumber !== undefined &&
+            initialConfig.damping !== undefined &&
+            initialConfig.amplitude !== undefined &&
+            initialConfig.mode !== undefined &&
+            initialConfig.colorScheme !== undefined &&
+            initialConfig.resolution !== undefined
+        ) {
+            console.log("Applying initialConfig to local state")
+            setHarmonistConfig(initialConfig)
+
+            // Update shader code if present
+            if (initialConfig.shaderCode) {
+                if (initialConfig.shaderCode.fragmentShader) {
+                    setFragmentShaderCode(initialConfig.shaderCode.fragmentShader)
+                }
+                if (initialConfig.shaderCode.vertexShader) {
+                    setVertexShaderCode(initialConfig.shaderCode.vertexShader)
+                }
+            }
+
+            // Check for complete configuration in localStorage
+            const completeConfigJson = localStorage.getItem('selectedArtworkComplete')
+            if (completeConfigJson) {
+                try {
+                    const completeConfig = JSON.parse(completeConfigJson)
+                    console.log("Found complete configuration:", completeConfig)
+
+                    // Update tuning system settings if available
+                    if (completeConfig.just_intonation) {
+                        const ji = completeConfig.just_intonation
+                        if (ji.tuning_system) {
+                            setTuningSystem(ji.tuning_system as TuningSystemKey)
+                        }
+                        if (ji.root_note) {
+                            setRootNote(ji.root_note as NoteKey)
+                        }
+                        if (ji.octave !== undefined) {
+                            setOctave(ji.octave)
+                        }
+                        if (ji.selected_harmonics && Array.isArray(ji.selected_harmonics)) {
+                            setSelectedHarmonics(ji.selected_harmonics)
+                        }
+                    }
+
+                    // Generate JSON representation for the config text area
+                    setConfigText(JSON.stringify(completeConfig, null, 2))
+
+                    // Remove from localStorage to prevent reloading
+                    localStorage.removeItem('selectedArtworkComplete')
+                } catch (error) {
+                    console.error("Error parsing complete configuration:", error)
+                    // Fall back to simple config
+                    setConfigText(JSON.stringify(initialConfig, null, 2))
+                }
+            } else {
+                // Generate JSON representation for the config text area
+                setConfigText(JSON.stringify(initialConfig, null, 2))
+            }
+        } else {
+            console.warn("Received incomplete initialConfig, some properties are undefined")
+        }
+    }, [initialConfig])
+
     // Initialize shader code from default values
     useEffect(() => {
         // Default fragment shader code
@@ -758,8 +829,8 @@ vec2 hash22(vec2 p) {
                                         <Slider
                                             id="base-frequency"
                                             value={[harmonistConfig.baseFrequency]}
-                                            min={220}
-                                            max={880}
+                                            min={0.1}
+                                            max={100}
                                             step={0.1}
                                             className="flex-1"
                                             onValueChange={(values) => updateHarmonistConfig({ baseFrequency: values[0] })}
@@ -768,7 +839,7 @@ vec2 hash22(vec2 p) {
                                             type="number"
                                             value={harmonistConfig.baseFrequency.toString()}
                                             onChange={(e) =>
-                                                updateHarmonistConfig({ baseFrequency: Number.parseFloat(e.target.value) || 432 })
+                                                updateHarmonistConfig({ baseFrequency: Number.parseFloat(e.target.value) || 43.2 })
                                             }
                                             className="w-20 bg-[#f8f5f0]"
                                             step={0.1}
@@ -814,7 +885,7 @@ vec2 hash22(vec2 p) {
                                             id="wave-number"
                                             value={[harmonistConfig.waveNumber]}
                                             min={1}
-                                            max={20}
+                                            max={31}
                                             step={1}
                                             className="flex-1"
                                             onValueChange={(values) => updateHarmonistConfig({ waveNumber: values[0] })}
@@ -908,7 +979,7 @@ vec2 hash22(vec2 p) {
                                                 id="damping"
                                                 value={[harmonistConfig.damping]}
                                                 min={0}
-                                                max={0.1}
+                                                max={2}
                                                 step={0.001}
                                                 onValueChange={(values) => updateHarmonistConfig({ damping: values[0] })}
                                             />
@@ -923,9 +994,9 @@ vec2 hash22(vec2 p) {
                                             <Slider
                                                 id="amplitude"
                                                 value={[harmonistConfig.amplitude]}
-                                                min={0.1}
-                                                max={1}
-                                                step={0.01}
+                                                min={0}
+                                                max={500}
+                                                step={1}
                                                 onValueChange={(values) => updateHarmonistConfig({ amplitude: values[0] })}
                                             />
                                         </div>

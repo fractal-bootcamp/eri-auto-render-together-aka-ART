@@ -5,9 +5,10 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { api } from "~/trpc/react";
 import { useUser } from "@clerk/nextjs";
+import { SignInButton } from "@clerk/nextjs";
 
 interface Artwork {
-    id: number | string;
+    id: string | number;
     title: string;
     creator: string;
     likes: number;
@@ -15,14 +16,14 @@ interface Artwork {
     imageUrl?: string;
     timestamp?: number;
     harmonic_parameters?: {
-        base_frequency: number;
-        harmonic_ratio: number;
-        wave_number: number;
-        damping: number;
-        amplitude: number;
-        mode: string;
-        color_scheme: string;
-        resolution: number;
+        base_frequency?: number;
+        harmonic_ratio?: number;
+        wave_number?: number;
+        damping?: number;
+        amplitude?: number;
+        mode?: string;
+        color_scheme?: string;
+        resolution?: number;
     };
 }
 
@@ -36,6 +37,7 @@ interface DbArtwork {
     isPublic: boolean;
     user?: {
         name: string | null;
+        email: string;
     };
     _count?: {
         likes: number;
@@ -47,6 +49,29 @@ export default function ExplorePage() {
     const { user, isSignedIn } = useUser();
     const [artworks, setArtworks] = useState<Artwork[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showSignInPrompt, setShowSignInPrompt] = useState(false);
+    const [pendingLikeId, setPendingLikeId] = useState<string | number | null>(null);
+
+    // Store the current page URL when component mounts
+    useEffect(() => {
+        // Store that we're on the explore page
+        localStorage.setItem('lastVisitedPage', '/explore');
+    }, []);
+
+    // Check if we were redirected from login and should be on explore page
+    useEffect(() => {
+        // If we just logged in and were previously on the explore page
+        if (isSignedIn && window.location.pathname === '/artbuilder') {
+            const lastPage = localStorage.getItem('lastVisitedPage');
+            if (lastPage === '/explore') {
+                console.log('Redirecting back to explore page after login');
+                // Clear the stored page to prevent redirect loops
+                localStorage.removeItem('lastVisitedPage');
+                // Redirect back to explore page
+                router.push('/explore');
+            }
+        }
+    }, [isSignedIn, router]);
 
     // Fetch public artworks from the database
     const { data: dbArtworks, isLoading: isDbLoading } = api.art.getPublic.useQuery(undefined, {
@@ -84,6 +109,7 @@ export default function ExplorePage() {
         if (savedLikes) {
             try {
                 likedArtworkIds = JSON.parse(savedLikes);
+                console.log("Loaded user likes from localStorage:", likedArtworkIds);
             } catch (error) {
                 console.error("Error parsing saved likes:", error);
             }
@@ -105,6 +131,8 @@ export default function ExplorePage() {
                     likes: artwork.likes || 0,
                     isLiked: likedArtworkIds.includes(artwork.id)
                 }));
+
+                console.log("Loaded local artworks:", localArtworks.length);
             } catch (error) {
                 console.error("Error parsing saved artworks:", error);
             }
@@ -122,30 +150,49 @@ export default function ExplorePage() {
             : [];
 
         // Convert DB artworks to the Artwork interface format
-        const dbArtworksFormatted: Artwork[] = dbArtworks
+        const dbArtworksFormatted = (dbArtworks
             ? dbArtworks.map(dbArt => {
                 // Parse the code to get harmonic parameters
                 let harmonic_parameters;
                 try {
                     const parsedCode = JSON.parse(dbArt.code);
-                    harmonic_parameters = {
-                        base_frequency: parsedCode.baseFrequency,
-                        harmonic_ratio: parsedCode.harmonicRatio,
-                        wave_number: parsedCode.waveNumber,
-                        damping: parsedCode.damping,
-                        amplitude: parsedCode.amplitude,
-                        mode: parsedCode.mode,
-                        color_scheme: parsedCode.colorScheme,
-                        resolution: parsedCode.resolution
-                    };
+
+                    // Check if the code has a harmonic_parameters field (new format)
+                    if (parsedCode.harmonic_parameters) {
+                        harmonic_parameters = parsedCode.harmonic_parameters;
+                    } else {
+                        // Fall back to the old format
+                        harmonic_parameters = {
+                            base_frequency: parsedCode.baseFrequency,
+                            harmonic_ratio: parsedCode.harmonicRatio,
+                            wave_number: parsedCode.waveNumber,
+                            damping: parsedCode.damping,
+                            amplitude: parsedCode.amplitude,
+                            mode: parsedCode.mode,
+                            color_scheme: parsedCode.colorScheme,
+                            resolution: parsedCode.resolution
+                        };
+                    }
                 } catch (error) {
                     console.error("Error parsing artwork code:", error);
+                }
+
+                // Determine the creator name
+                let creatorName = "Anonymous Artist";
+
+                // Check if user exists and has a name
+                if (dbArt.user) {
+                    if (dbArt.user.name) {
+                        creatorName = dbArt.user.name;
+                    } else {
+                        creatorName = "Anonymous";
+                    }
                 }
 
                 return {
                     id: dbArt.id,
                     title: dbArt.name,
-                    creator: dbArt.user?.name || "Unknown Artist",
+                    creator: creatorName,
                     likes: dbArt._count?.likes || 0,
                     isLiked: likedArtworkIds.includes(dbArt.id),
                     imageUrl: dbArt.thumbnail || undefined,
@@ -153,7 +200,9 @@ export default function ExplorePage() {
                     harmonic_parameters
                 };
             })
-            : [];
+            : []) as Artwork[];
+
+        console.log("Loaded DB artworks:", dbArtworksFormatted.length);
 
         // Combine all artworks, prioritizing DB artworks
         const combinedArtworks = [...dbArtworksFormatted, ...localArtworks, ...sampleArtworks];
@@ -162,20 +211,85 @@ export default function ExplorePage() {
         setIsLoading(false);
     }, [dbArtworks]);
 
+    // Check for pending likes when user signs in
+    useEffect(() => {
+        if (isSignedIn) {
+            const pendingLike = localStorage.getItem('pendingLike');
+            if (pendingLike) {
+                console.log(`User signed in, processing pending like for artwork ID: ${pendingLike}`);
+
+                // Clear the pending like
+                localStorage.removeItem('pendingLike');
+
+                // Only process if it's a database artwork (string ID)
+                if (pendingLike.startsWith('cl') || pendingLike.length > 8) {
+                    console.log(`Processing pending like for database artwork ID: ${pendingLike}`);
+                    toggleLikeMutation.mutate({ configId: pendingLike });
+                } else {
+                    // For local artworks (numeric IDs)
+                    const numericId = parseInt(pendingLike, 10);
+                    if (!isNaN(numericId)) {
+                        console.log(`Processing pending like for local artwork ID: ${numericId}`);
+
+                        // Update artworks state
+                        setArtworks(prevArtworks =>
+                            prevArtworks.map(artwork => {
+                                if (artwork.id === numericId) {
+                                    return {
+                                        ...artwork,
+                                        likes: artwork.likes + 1,
+                                        isLiked: true
+                                    };
+                                }
+                                return artwork;
+                            })
+                        );
+
+                        // Update localStorage to persist user likes
+                        const savedLikes = JSON.parse(localStorage.getItem('userLikes') || '[]');
+                        localStorage.setItem('userLikes', JSON.stringify([...savedLikes, numericId]));
+                    }
+                }
+            }
+        }
+    }, [isSignedIn, toggleLikeMutation]);
+
+    // Function to handle sign in from prompt
+    const handleClosePrompt = () => {
+        // Close the prompt
+        setShowSignInPrompt(false);
+    };
+
     const handleLike = (id: string | number) => {
-        // If the user is signed in and the artwork is from the database (string ID)
-        if (isSignedIn && typeof id === 'string') {
-            // Use the tRPC mutation to toggle like
+        // If the user is not signed in, show sign-in prompt
+        if (!isSignedIn) {
+            // Store the artwork ID they wanted to like
+            localStorage.setItem('pendingLike', String(id));
+            setPendingLikeId(id);
+            // Make sure we know to return to explore page
+            localStorage.setItem('lastVisitedPage', '/explore');
+            setShowSignInPrompt(true);
+            return;
+        }
+
+        // For database artworks (string IDs)
+        if (typeof id === 'string') {
+            console.log(`Toggling like for artwork ID: ${id}`);
+
+            // Use the tRPC mutation to toggle like in the database
             toggleLikeMutation.mutate({ configId: id });
         } else {
-            // For local artworks or when user is not signed in
+            // For local artworks (numeric IDs)
+            console.log(`Toggling like for local artwork ID: ${id}`);
+
             // Update artworks state
             setArtworks(artworks.map(artwork => {
                 if (artwork.id === id) {
+                    const newIsLiked = !artwork.isLiked;
                     return {
                         ...artwork,
-                        likes: artwork.isLiked ? artwork.likes - 1 : artwork.likes + 1,
-                        isLiked: !artwork.isLiked
+                        likes: newIsLiked ? artwork.likes + 1 : artwork.likes - 1,
+                        isLiked: newIsLiked
                     };
                 }
                 return artwork;
@@ -198,24 +312,30 @@ export default function ExplorePage() {
     };
 
     const handleOpenArtwork = (artwork: Artwork) => {
-        if (artwork.harmonic_parameters) {
-            // Save the configuration to localStorage for the artbuilder to load
-            localStorage.setItem('selectedArtwork', JSON.stringify({
-                baseFrequency: artwork.harmonic_parameters.base_frequency,
-                harmonicRatio: artwork.harmonic_parameters.harmonic_ratio,
-                waveNumber: artwork.harmonic_parameters.wave_number,
-                damping: artwork.harmonic_parameters.damping,
-                amplitude: artwork.harmonic_parameters.amplitude,
-                mode: artwork.harmonic_parameters.mode,
-                colorScheme: artwork.harmonic_parameters.color_scheme,
-                resolution: artwork.harmonic_parameters.resolution
-            }));
+        console.log("Opening artwork:", artwork);
+        console.log("Harmonic parameters:", artwork.harmonic_parameters);
 
-            // Navigate to the artbuilder page
-            router.push('/artbuilder');
-        } else {
-            alert('This artwork cannot be opened for editing.');
-        }
+        // Create a properly formatted configuration object
+        const params = artwork.harmonic_parameters || {};
+
+        const config = {
+            baseFrequency: params.base_frequency || 1.0,
+            harmonicRatio: params.harmonic_ratio || 1.5,
+            waveNumber: params.wave_number || 5,
+            damping: params.damping || 0.02,
+            amplitude: params.amplitude || 1.0,
+            mode: (params.mode || "circular") as "circular" | "linear" | "radial",
+            colorScheme: (params.color_scheme || "blue") as "blue" | "green" | "red" | "purple" | "rainbow",
+            resolution: params.resolution || 512
+        };
+
+        console.log("Saving configuration:", config);
+
+        // Save the configuration to localStorage
+        localStorage.setItem("savedConfiguration", JSON.stringify(config));
+
+        // Navigate to the artbuilder page
+        router.push("/artbuilder");
     };
 
     return (
@@ -232,6 +352,31 @@ export default function ExplorePage() {
                     </select>
                 </div>
             </div>
+
+            {/* Sign-in Prompt Modal */}
+            {showSignInPrompt && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+                    <div className="terminal-card p-6 max-w-md w-full">
+                        <h2 className="text-xl font-mono font-bold text-terminal-gray mb-4">Sign in to like artworks</h2>
+                        <p className="text-terminal-gray mb-6">
+                            Sign in to like artworks and save your preferences. Your like will be applied automatically after signing in.
+                        </p>
+                        <div className="flex justify-end gap-4">
+                            <button
+                                className="terminal-button"
+                                onClick={handleClosePrompt}
+                            >
+                                Cancel
+                            </button>
+                            <SignInButton mode="modal">
+                                <button className="terminal-button-green">
+                                    Sign In
+                                </button>
+                            </SignInButton>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {isLoading ? (
                 <div className="flex justify-center items-center h-64">
@@ -272,7 +417,7 @@ export default function ExplorePage() {
                                             {artwork.title || "Untitled Artwork"}
                                         </h3>
                                         <p className="text-terminal-gray/80 font-mono text-sm">
-                                            by {artwork.creator || "Unknown Artist"}
+                                            by {artwork.creator || "Anonymous Artist"}
                                             {artwork.timestamp && (
                                                 <span className="ml-2 text-xs opacity-70">
                                                     {new Date(artwork.timestamp).toLocaleDateString()}
@@ -289,11 +434,16 @@ export default function ExplorePage() {
                                             Open
                                         </button>
                                         <button
-                                            className={`p-2 rounded ${artwork.isLiked ? 'bg-terminal-pink' : 'bg-terminal-blue/20'} text-terminal-gray hover:bg-terminal-blue/40 transition border border-terminal-blue-dark`}
+                                            className={`p-2 rounded flex items-center gap-1 ${artwork.isLiked
+                                                ? 'bg-terminal-pink text-white'
+                                                : 'bg-terminal-blue/20 text-terminal-gray hover:bg-terminal-blue/40'
+                                                } transition border border-terminal-blue-dark`}
                                             onClick={() => handleLike(artwork.id)}
                                             aria-label={artwork.isLiked ? "Unlike" : "Like"}
+                                            title={isSignedIn ? (artwork.isLiked ? "Unlike" : "Like") : "Sign in to like"}
                                         >
-                                            {artwork.isLiked ? '♥' : '♡'} {artwork.likes}
+                                            <span className="text-lg">{artwork.isLiked ? '♥' : '♡'}</span>
+                                            <span>{artwork.likes}</span>
                                         </button>
                                     </div>
                                 </div>
