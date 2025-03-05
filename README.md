@@ -1,30 +1,65 @@
-# Create T3 App
+# UNIFIED ROLE-BASED COLLABORATIVE ART PLATFORM
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+## CORE CONCEPT: Assigned Role Templates (ART)
 
-## What's next? How do I make an app with this?
+A collaborative space where participants assume specialized creator roles to collectively generate config-driven art across multiple integrated domains.
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+## INTEGRATED ENVIRONMENT:
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+```
+The unified environment combines three previously separate project concepts:
+- Parametric Garden (organic/biological elements)
+- Resonance Field (audio-visual/harmonic elements)
+- Architecture of Light (structural/spatial elements)
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+These now function as interconnected aspects of a single evolving ecosystem.
+```
 
-## Learn More
+## ROLE SYSTEM:
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+```
+1. CULTIVATOR (Parametric Garden Focus)
+   - Controls growth algorithms and organic patterns
+   - Configures evolutionary parameters for living elements
+   - Tools: Seed Editor, Growth Pattern Designer, Ecosystem Balancer
+   - Parameters managed: fractal growth patterns, biological simulations,
+     botanical color schemes
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+2. HARMONIST (Resonance Field Focus)
+   - Shapes the sonic landscape and visual frequencies
+   - Creates mathematical relationships between sound and light
+   - Tools: Waveform Synthesizer, Harmonic Matrix, Rhythm Constructor
+   - Parameters managed: sound generation, frequency relationships,
+     audio-reactive visualizations, temporal patterns
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+3. ARCHITECT (Architecture of Light Focus)
+   - Constructs spatial frameworks and geometric foundations
+   - Defines physical laws and dimensional relationships
+   - Tools: Structure Builder, Ray Definer, Material Properties Lab
+   - Parameters managed: spatial geometry, light behavior,
+     physical properties, navigational pathways, parallax and depth perception
+```
 
-## How do I deploy this?
+## INTERACTION MECHANICS:
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
-# eri-auto-render-together-aka-ART
+```
+1. ROLE ASSIGNMENT 
+   - Users select a role upon entering (or are assigned based on balance needs)
+   - Role switching allowed after creation milestones or timed intervals
+   - Special "Synthesis" events where roles temporarily merge
+
+2. INTERDEPENDENT CREATION
+   - Changes by one role affect the parameters available to others
+   - Example: Architect creates a structure that Cultivator can grow plants on,
+     while Harmonist creates sounds that influence growth patterns
+
+3. CONFIG INHERITANCE
+   - All changes persist as layered configuration files
+   - New participants can build upon established parameter sets
+   - Historical configurations can be forked or merged
+
+4. SPATIAL INTERFACE
+   - Cultivators see the world through "organic lens" highlighting growth potential
+   - Harmonists perceive visual representations of sound waves and frequencies
+   - Architects see structural frameworks and dimensional possibilities
+```

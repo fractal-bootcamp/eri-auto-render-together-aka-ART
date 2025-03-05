@@ -9,6 +9,8 @@
 import { initTRPC } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
+import { getAuth } from "@clerk/nextjs/server";
+import { type NextRequest } from "next/server";
 
 import { db } from "~/server/db";
 
@@ -25,8 +27,13 @@ import { db } from "~/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  // For API requests, we need to get the user ID from Clerk
+  const auth = getAuth(opts.headers as unknown as NextRequest);
+  const userId = auth.userId;
+
   return {
     db,
+    userId,
     ...opts,
   };
 };
@@ -95,6 +102,26 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 
   return result;
 });
+
+/**
+ * Protected (authenticated) procedure
+ *
+ * This is the procedure you should use for queries and mutations that require authentication.
+ * It verifies that the user is authenticated before proceeding.
+ */
+export const protectedProcedure = t.procedure
+  .use(timingMiddleware)
+  .use(({ ctx, next }) => {
+    if (!ctx.userId) {
+      throw new Error("UNAUTHORIZED: You must be logged in to access this resource");
+    }
+    return next({
+      ctx: {
+        ...ctx,
+        userId: ctx.userId,
+      },
+    });
+  });
 
 /**
  * Public (unauthenticated) procedure

@@ -2,8 +2,6 @@
 
 import { useState } from "react"
 import LandingPage from "~/app/_components/landing-page"
-import { EditorWindow } from "~/app/_components/EditorWindow"
-import CodeEditor from "~/app/_components/code-editor"
 
 export default function Home() {
   const [showLanding, setShowLanding] = useState(true)
@@ -45,13 +43,7 @@ export default function Home() {
 
       {showLanding && <LandingPage onCloseWindow={handleCloseWindow} />}
 
-      {showEditor && (
-        <div className="z-10 w-full h-full">
-          <EditorWindow>
-            <CodeEditor />
-          </EditorWindow>
-        </div>
-      )}
+
     </main>
   )
 }
