@@ -14,6 +14,9 @@ import { type NextRequest } from "next/server";
 
 import { db } from "~/server/db";
 
+// Define a type for our auth object
+type Auth = { userId: string | null };
+
 /**
  * 1. CONTEXT
  *
@@ -28,12 +31,30 @@ import { db } from "~/server/db";
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
   // For API requests, we need to get the user ID from Clerk
-  const auth = getAuth(opts.headers as unknown as NextRequest);
-  const userId = auth.userId;
+  let auth: Auth = { userId: null };
+
+  // Only attempt to get auth if headers are provided
+  if (opts.headers) {
+    try {
+      // Check if we have the necessary headers before calling getAuth
+      const authHeader = opts.headers.get('authorization');
+      if (authHeader) {
+        const clerkAuth = getAuth(opts.headers as unknown as NextRequest);
+        auth = { userId: clerkAuth.userId };
+      } else {
+        // No auth header, so user is not authenticated
+        console.log("No authorization header found, user not authenticated");
+      }
+    } catch (error) {
+      // Don't log the full error to prevent memory leaks, just log a simple message
+      console.error("Error authenticating user");
+    }
+  }
 
   return {
     db,
-    userId,
+    auth,
+    userId: auth.userId, // Keep for backward compatibility
     ...opts,
   };
 };
@@ -112,13 +133,13 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 export const protectedProcedure = t.procedure
   .use(timingMiddleware)
   .use(({ ctx, next }) => {
-    if (!ctx.userId) {
+    if (!ctx.auth?.userId && !ctx.userId) {
       throw new Error("UNAUTHORIZED: You must be logged in to access this resource");
     }
     return next({
       ctx: {
         ...ctx,
-        userId: ctx.userId,
+        userId: ctx.auth?.userId || ctx.userId,
       },
     });
   });

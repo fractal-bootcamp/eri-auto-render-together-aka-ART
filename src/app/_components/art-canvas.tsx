@@ -19,6 +19,7 @@ interface HarmonistConfig {
     mode: "circular" | "rectangular" | "triangular"
     colorScheme: "blue" | "rainbow" | "monochrome"
     resolution: number
+    imageUrl?: string
     shaderCode?: {
         fragmentShader: string
         vertexShader: string
@@ -37,6 +38,137 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
     const materialRef = useRef<THREE.ShaderMaterial | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const isInitialRender = useRef(true)
+    const [preloadedImage, setPreloadedImage] = useState<HTMLImageElement | null>(null)
+
+    // Default shader code
+    const defaultVertexShader = `
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = vec4(position, 1.0);
+        }
+    `;
+
+    const defaultFragmentShader = `
+        uniform float time;
+        uniform vec2 resolution;
+        uniform float baseFrequency;
+        uniform float harmonicRatio;
+        uniform float waveNumber;
+        uniform float damping;
+        uniform float amplitude;
+        uniform int mode;
+        uniform int colorScheme;
+        varying vec2 vUv;
+        
+        #define PI 3.14159265359
+        
+        // Circular Chladni pattern
+        float circularChladni(vec2 pos, float n) {
+            float r = length(pos);
+            float theta = atan(pos.y, pos.x);
+            
+            // Bessel function approximation for circular plate
+            float bessel = sin(n * r * PI) / (n * r * PI);
+            if (r < 0.01) bessel = 1.0; // Avoid division by zero
+            
+            return bessel * cos(n * theta);
+        }
+        
+        // Rectangular Chladni pattern
+        float rectangularChladni(vec2 pos, float m, float n) {
+            // Standing waves on rectangular plate
+            return sin(m * PI * pos.x) * sin(n * PI * pos.y);
+        }
+        
+        // Triangular Chladni pattern
+        float triangularChladni(vec2 pos, float n) {
+            // Simplified triangular pattern
+            float a = 1.0;
+            float h = sqrt(3.0) / 2.0 * a;
+            
+            // Barycentric coordinates
+            vec2 p = pos - vec2(0.5, 0.5);
+            p.y /= h;
+            
+            float x = p.x;
+            float y = p.y;
+            
+            return sin(n * PI * x) * sin(n * PI * y) * sin(n * PI * (1.0 - x - y));
+        }
+        
+        // Color mapping functions
+        vec3 blueColorMap(float v) {
+            v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
+            return vec3(0.1, 0.2 + 0.6 * v, 0.4 + 0.6 * v);
+        }
+        
+        vec3 rainbowColorMap(float v) {
+            v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
+            return 0.5 + 0.5 * cos(2.0 * PI * (vec3(0.0, 0.33, 0.67) + v));
+        }
+        
+        vec3 monochromeColorMap(float v) {
+            v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
+            return vec3(v);
+        }
+        
+        void main() {
+            // Center and scale coordinates
+            vec2 pos = vUv - 0.5;
+            pos *= 2.0; // Scale to [-1, 1]
+            
+            // Calculate time-dependent frequency
+            float freq = baseFrequency * (1.0 + 0.01 * sin(time * 0.1));
+            
+            // Calculate wave pattern based on mode
+            float pattern = 0.0;
+            
+            if (mode == 0) {
+                // Circular mode
+                pattern = circularChladni(pos, waveNumber);
+            } else if (mode == 1) {
+                // Rectangular mode
+                pattern = rectangularChladni(pos, waveNumber, waveNumber * harmonicRatio);
+            } else {
+                // Triangular mode
+                pattern = triangularChladni(pos, waveNumber);
+            }
+            
+            // Apply time evolution
+            pattern *= cos(time * freq * 0.01);
+            
+            // Apply damping from center
+            float dist = length(pos);
+            float dampingFactor = exp(-damping * dist * 10.0);
+            pattern *= dampingFactor * amplitude;
+            
+            // Add some harmonics
+            pattern += 0.3 * rectangularChladni(pos, waveNumber * harmonicRatio, waveNumber) 
+                    * cos(time * freq * 0.01 * harmonicRatio) * dampingFactor * amplitude;
+            
+            // Apply color mapping based on color scheme
+            vec3 color;
+            if (colorScheme == 0) {
+                color = blueColorMap(pattern);
+            } else if (colorScheme == 1) {
+                color = rainbowColorMap(pattern);
+            } else {
+                color = monochromeColorMap(pattern);
+            }
+            
+            // Add holographic effect
+            float holographic = 0.2 * sin(pos.x * 50.0 + time * 0.1) * sin(pos.y * 50.0 + time * 0.1);
+            color += holographic * vec3(0.1, 0.3, 0.5);
+            
+            // Add glow at antinodes
+            float glow = smoothstep(0.7, 1.0, abs(pattern));
+            color += glow * vec3(0.2, 0.5, 0.8) * dampingFactor;
+            
+            // Output final color
+            gl_FragColor = vec4(color, 0.9);
+        }
+    `;
 
     // Default harmonist configuration
     const [harmonistConfig, setHarmonistConfig] = useState<HarmonistConfig>(
@@ -66,256 +198,220 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         }
     })
 
-    // Update local state when props change, but avoid infinite loops
+    // Preload image if imageUrl is provided - but we're now prioritizing configuration data
     useEffect(() => {
-        if (config && !isInitialRender.current) {
-            setHarmonistConfig(config)
+        // We're now prioritizing configuration data over images
+        // This hook is kept for backward compatibility but is no longer the primary focus
+        if (harmonistConfig.imageUrl) {
+            const img = new Image()
+            img.src = harmonistConfig.imageUrl
+            img.onload = () => {
+                // We're not setting preloadedImage anymore to force shader-based rendering
+                // setPreloadedImage(img)
+                setIsLoading(false)
+            }
         }
-        isInitialRender.current = false
+    }, [harmonistConfig.imageUrl])
+
+    // Update local state when props change
+    useEffect(() => {
+        if (config) {
+            console.log("ArtCanvas received config:", config)
+
+            // Ensure we have all required properties before updating
+            if (
+                config.baseFrequency !== undefined &&
+                config.harmonicRatio !== undefined &&
+                config.waveNumber !== undefined &&
+                config.damping !== undefined &&
+                config.amplitude !== undefined &&
+                config.mode !== undefined &&
+                config.colorScheme !== undefined &&
+                config.resolution !== undefined
+            ) {
+                console.log("Applying config to local state")
+                setHarmonistConfig(config)
+
+                // Force a re-render of the scene
+                if (materialRef.current && materialRef.current.uniforms) {
+                    console.log("Updating shader material uniforms")
+                    if (materialRef.current.uniforms.baseFrequency) {
+                        materialRef.current.uniforms.baseFrequency.value = config.baseFrequency
+                    }
+                    if (materialRef.current.uniforms.harmonicRatio) {
+                        materialRef.current.uniforms.harmonicRatio.value = config.harmonicRatio
+                    }
+                    if (materialRef.current.uniforms.waveNumber) {
+                        materialRef.current.uniforms.waveNumber.value = config.waveNumber
+                    }
+                    if (materialRef.current.uniforms.damping) {
+                        materialRef.current.uniforms.damping.value = config.damping
+                    }
+                    if (materialRef.current.uniforms.amplitude) {
+                        materialRef.current.uniforms.amplitude.value = config.amplitude
+                    }
+                    if (materialRef.current.uniforms.mode) {
+                        materialRef.current.uniforms.mode.value = config.mode === "circular" ? 0 : config.mode === "rectangular" ? 1 : 2
+                    }
+                    if (materialRef.current.uniforms.colorScheme) {
+                        materialRef.current.uniforms.colorScheme.value = config.colorScheme === "blue" ? 0 : config.colorScheme === "rainbow" ? 1 : 2
+                    }
+                    materialRef.current.needsUpdate = true
+                }
+            } else {
+                console.warn("Received incomplete config, some properties are undefined")
+            }
+        }
     }, [config])
 
+    // Initialize Three.js scene
     useEffect(() => {
         if (!canvasRef.current) return
 
-        // Initialize Three.js
+        // Setup renderer
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvasRef.current,
+            antialias: true,
+            alpha: true,
+        })
+        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight)
+        renderer.setPixelRatio(window.devicePixelRatio)
+        renderer.setClearColor(0xf5f0e6, 1)
+        rendererRef.current = renderer
+
+        // Setup scene
         const scene = new THREE.Scene()
         sceneRef.current = scene
 
+        // Setup camera
         const camera = new THREE.PerspectiveCamera(
             75,
             canvasRef.current.clientWidth / canvasRef.current.clientHeight,
             0.1,
-            1000,
+            1000
         )
-        camera.position.z = 1.2
+        camera.position.z = 1.5
         cameraRef.current = camera
 
-        const renderer = new THREE.WebGLRenderer({
-            canvas: canvasRef.current,
-            alpha: true,
-            antialias: true,
-        })
-        renderer.setSize(canvasRef.current.clientWidth, canvasRef.current.clientHeight)
-        renderer.setClearColor(0xf5f0e6, 1)
-        rendererRef.current = renderer
+        // Cleanup
+        return () => {
+            if (rendererRef.current) {
+                rendererRef.current.dispose()
+            }
+            if (materialRef.current) {
+                materialRef.current.dispose()
+            }
+        }
+    }, [])
+
+    // Initialize or update shader material when configuration changes
+    useEffect(() => {
+        if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return
+
+        // Clear existing scene
+        if (sceneRef.current) {
+            // Clear all children from the scene
+            while (sceneRef.current.children.length > 0) {
+                const child = sceneRef.current.children[0]
+                if (child) {
+                    sceneRef.current.remove(child)
+                }
+            }
+        }
+
+        // We're now prioritizing configuration data over images
+        // This block is commented out to force shader-based rendering
+        /*
+        if (preloadedImage) {
+            const texture = new THREE.Texture(preloadedImage)
+            texture.needsUpdate = true
+            
+            const geometry = new THREE.PlaneGeometry(2, 2)
+            const material = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true
+            })
+            const mesh = new THREE.Mesh(geometry, material)
+            sceneRef.current.add(mesh)
+            
+            // Render the scene
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
+            setIsLoading(false)
+            return
+        }
+        */
 
         // Create Chladni plate shader material
-        const geometry = new THREE.PlaneGeometry(2, 2)
+        const fragmentShader = harmonistConfig.shaderCode?.fragmentShader || defaultFragmentShader
+        const vertexShader = harmonistConfig.shaderCode?.vertexShader || defaultVertexShader
 
-        // Use custom shader code if available, otherwise use default
-        const vertexShader =
-            harmonistConfig.shaderCode?.vertexShader ??
-            `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = vec4(position, 1.0);
-      }
-    `
-
-        const fragmentShader =
-            harmonistConfig.shaderCode?.fragmentShader ??
-            `
-      uniform float time;
-      uniform vec2 resolution;
-      uniform float baseFrequency;
-      uniform float harmonicRatio;
-      uniform float waveNumber;
-      uniform float damping;
-      uniform float amplitude;
-      uniform int mode;
-      uniform int colorScheme;
-      varying vec2 vUv;
-      
-      #define PI 3.14159265359
-      
-      // Circular Chladni pattern
-      float circularChladni(vec2 pos, float n) {
-        float r = length(pos);
-        float theta = atan(pos.y, pos.x);
-        
-        // Bessel function approximation for circular plate
-        float bessel = sin(n * r * PI) / (n * r * PI);
-        if (r < 0.01) bessel = 1.0; // Avoid division by zero
-        
-        return bessel * cos(n * theta);
-      }
-      
-      // Rectangular Chladni pattern
-      float rectangularChladni(vec2 pos, float m, float n) {
-        // Standing waves on rectangular plate
-        return sin(m * PI * pos.x) * sin(n * PI * pos.y);
-      }
-      
-      // Triangular Chladni pattern
-      float triangularChladni(vec2 pos, float n) {
-        // Simplified triangular pattern
-        float a = 1.0;
-        float h = sqrt(3.0) / 2.0 * a;
-        
-        // Barycentric coordinates
-        vec2 p = pos - vec2(0.5, 0.5);
-        p.y /= h;
-        
-        float x = p.x;
-        float y = p.y;
-        
-        return sin(n * PI * x) * sin(n * PI * y) * sin(n * PI * (1.0 - x - y));
-      }
-      
-      // Color mapping functions
-      vec3 blueColorMap(float v) {
-        v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
-        return vec3(0.1, 0.2 + 0.6 * v, 0.4 + 0.6 * v);
-      }
-      
-      vec3 rainbowColorMap(float v) {
-        v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
-        return 0.5 + 0.5 * cos(2.0 * PI * (vec3(0.0, 0.33, 0.67) + v));
-      }
-      
-      vec3 monochromeColorMap(float v) {
-        v = clamp(v, -1.0, 1.0) * 0.5 + 0.5;
-        return vec3(v);
-      }
-      
-      void main() {
-        // Center and scale coordinates
-        vec2 pos = vUv - 0.5;
-        pos *= 2.0; // Scale to [-1, 1]
-        
-        // Calculate time-dependent frequency
-        float freq = baseFrequency * (1.0 + 0.01 * sin(time * 0.1));
-        
-        // Calculate wave pattern based on mode
-        float pattern = 0.0;
-        
-        if (mode == 0) {
-          // Circular mode
-          pattern = circularChladni(pos, waveNumber);
-        } else if (mode == 1) {
-          // Rectangular mode
-          pattern = rectangularChladni(pos, waveNumber, waveNumber * harmonicRatio);
-        } else {
-          // Triangular mode
-          pattern = triangularChladni(pos, waveNumber);
-        }
-        
-        // Apply time evolution
-        pattern *= cos(time * freq * 0.01);
-        
-        // Apply damping from center
-        float dist = length(pos);
-        float dampingFactor = exp(-damping * dist * 10.0);
-        pattern *= dampingFactor * amplitude;
-        
-        // Add some harmonics
-        pattern += 0.3 * rectangularChladni(pos, waveNumber * harmonicRatio, waveNumber) 
-                 * cos(time * freq * 0.01 * harmonicRatio) * dampingFactor * amplitude;
-        
-        // Apply color mapping based on color scheme
-        vec3 color;
-        if (colorScheme == 0) {
-          color = blueColorMap(pattern);
-        } else if (colorScheme == 1) {
-          color = rainbowColorMap(pattern);
-        } else {
-          color = monochromeColorMap(pattern);
-        }
-        
-        // Add holographic effect
-        float holographic = 0.2 * sin(pos.x * 50.0 + time * 0.1) * sin(pos.y * 50.0 + time * 0.1);
-        color += holographic * vec3(0.1, 0.3, 0.5);
-        
-        // Add glow at antinodes
-        float glow = smoothstep(0.7, 1.0, abs(pattern));
-        color += glow * vec3(0.2, 0.5, 0.8) * dampingFactor;
-        
-        // Output final color
-        gl_FragColor = vec4(color, 0.9);
-      }
-    `
+        console.log("Creating shader material with config:", {
+            baseFrequency: harmonistConfig.baseFrequency,
+            harmonicRatio: harmonistConfig.harmonicRatio,
+            waveNumber: harmonistConfig.waveNumber,
+            damping: harmonistConfig.damping,
+            amplitude: harmonistConfig.amplitude,
+            mode: harmonistConfig.mode,
+            colorScheme: harmonistConfig.colorScheme
+        })
 
         const material = new THREE.ShaderMaterial({
             uniforms: {
-                time: { value: 0 },
-                resolution: { value: new THREE.Vector2(canvasRef.current.clientWidth, canvasRef.current.clientHeight) },
+                time: { value: 0.0 },
+                resolution: { value: new THREE.Vector2(canvasRef.current!.width, canvasRef.current!.height) },
                 baseFrequency: { value: harmonistConfig.baseFrequency },
                 harmonicRatio: { value: harmonistConfig.harmonicRatio },
                 waveNumber: { value: harmonistConfig.waveNumber },
                 damping: { value: harmonistConfig.damping },
                 amplitude: { value: harmonistConfig.amplitude },
                 mode: { value: harmonistConfig.mode === "circular" ? 0 : harmonistConfig.mode === "rectangular" ? 1 : 2 },
-                colorScheme: {
-                    value: harmonistConfig.colorScheme === "blue" ? 0 : harmonistConfig.colorScheme === "rainbow" ? 1 : 2,
-                },
+                colorScheme: { value: harmonistConfig.colorScheme === "blue" ? 0 : harmonistConfig.colorScheme === "rainbow" ? 1 : 2 },
             },
-            vertexShader,
             fragmentShader,
-            transparent: true,
+            vertexShader,
         })
-
         materialRef.current = material
 
-        const plane = new THREE.Mesh(geometry, material)
-        scene.add(plane)
+        // Create a plane geometry that fills the screen
+        const geometry = new THREE.PlaneGeometry(2, 2)
+        const mesh = new THREE.Mesh(geometry, material)
+        sceneRef.current.add(mesh)
 
         // Animation loop
-        let animationFrameId: number
         const animate = () => {
             if (!rendererRef.current || !sceneRef.current || !cameraRef.current) return
 
-            animationFrameId = requestAnimationFrame(animate)
-
-            // Update uniforms
-            if (material.uniforms.time !== undefined) {
-                material.uniforms.time.value += 1.0
+            // If we have a shader material, update its time uniform
+            if (materialRef.current && materialRef.current.uniforms.time) {
+                materialRef.current.uniforms.time.value += 0.01
             }
 
             rendererRef.current.render(sceneRef.current, cameraRef.current)
+            requestAnimationFrame(animate)
         }
-
-        // Handle resize
-        const handleResize = () => {
-            if (!canvasRef.current || !cameraRef.current || !rendererRef.current) return
-
-            const width = canvasRef.current.clientWidth
-            const height = canvasRef.current.clientHeight
-
-            cameraRef.current.aspect = width / height
-            cameraRef.current.updateProjectionMatrix()
-
-            rendererRef.current.setSize(width, height)
-            if (material.uniforms.resolution !== undefined) {
-                material.uniforms.resolution.value.set(width, height)
-            }
-        }
-
-        window.addEventListener("resize", handleResize)
 
         // Start animation
-        animate()
+        const animationFrameId = requestAnimationFrame(animate)
         setIsLoading(false)
 
+        // Cleanup animation frame on unmount or when dependencies change
         return () => {
-            window.removeEventListener("resize", handleResize)
             cancelAnimationFrame(animationFrameId)
-
-            // Clean up Three.js resources
-            geometry.dispose()
-            material.dispose()
-            renderer.dispose()
         }
     }, [
-        harmonistConfig.amplitude,
         harmonistConfig.baseFrequency,
-        harmonistConfig.colorScheme,
-        harmonistConfig.damping,
         harmonistConfig.harmonicRatio,
-        harmonistConfig.mode,
         harmonistConfig.waveNumber,
+        harmonistConfig.damping,
+        harmonistConfig.amplitude,
+        harmonistConfig.mode,
+        harmonistConfig.colorScheme,
+        harmonistConfig.resolution,
         harmonistConfig.shaderCode,
+        defaultFragmentShader,
+        defaultVertexShader
     ])
+
     useEffect(() => {
         if (materialRef.current && materialRef.current.uniforms) {
             // Update uniforms with current configuration
@@ -378,11 +474,53 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         // Get the data URL
         const dataURL = canvasRef.current.toDataURL("image/png")
 
-        // Create a configuration based on the current state
+        // Get the creator name from the authenticated user or use "Guest" as default
+        const creatorName = isSignedIn && user ? (user.fullName || user.username || user.firstName || "User") : "Guest"
+
+        // Create a unique ID for the pattern
+        const patternId = `harmonic_pattern_${Math.floor(Math.random() * 1000)}`
+
+        // Create a complete configuration with all sections
+        const completeConfig = {
+            meta: {
+                id: patternId,
+                version: "1.0.0",
+                contributors: [
+                    {
+                        id: creatorName
+                    }
+                ],
+                tags: [
+                    "chladni",
+                    "cymatics",
+                    "just-intonation"
+                ]
+            },
+            harmonic_parameters: {
+                base_frequency: harmonistConfig.baseFrequency,
+                harmonic_ratio: harmonistConfig.harmonicRatio,
+                wave_number: harmonistConfig.waveNumber,
+                damping: harmonistConfig.damping,
+                amplitude: harmonistConfig.amplitude,
+                mode: harmonistConfig.mode,
+                color_scheme: harmonistConfig.colorScheme,
+                resolution: harmonistConfig.resolution
+            },
+            just_intonation: {
+                root_frequency: harmonistConfig.baseFrequency,
+                tuning_system: "Just Major",
+                ratios: [1, 9 / 8, 5 / 4, 4 / 3, 3 / 2, 5 / 3, 15 / 8, 2],
+                root_note: "A",
+                octave: 4,
+                selected_harmonics: [1, 3, 5, 7]
+            }
+        }
+
+        // Create a configuration based on the current state (for backward compatibility)
         const config = {
-            id: `harmonic_pattern_${Math.floor(Math.random() * 1000)}`,
+            id: patternId,
             title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
-            creator: "You",
+            creator: creatorName,
             timestamp: Date.now(),
             likes: 0,
             isLiked: false,
@@ -401,10 +539,17 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
 
         // Save to localStorage for non-authenticated users or as a backup
         try {
+            // Save both the complete config and the backward-compatible config
             const savedArtworks = JSON.parse(localStorage.getItem('sharedArtworks') || '[]')
             const updatedArtworks = Array.isArray(savedArtworks) ? savedArtworks : [savedArtworks]
             updatedArtworks.push(config)
             localStorage.setItem('sharedArtworks', JSON.stringify(updatedArtworks))
+
+            // Also save the complete configuration
+            const savedCompleteArtworks = JSON.parse(localStorage.getItem('sharedCompleteArtworks') || '[]')
+            const updatedCompleteArtworks = Array.isArray(savedCompleteArtworks) ? savedCompleteArtworks : [savedCompleteArtworks]
+            updatedCompleteArtworks.push(completeConfig)
+            localStorage.setItem('sharedCompleteArtworks', JSON.stringify(updatedCompleteArtworks))
         } catch (error) {
             console.error("Error saving artwork to localStorage:", error)
         }
@@ -412,24 +557,14 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         // If user is signed in, save to database using tRPC
         if (isSignedIn && user) {
             try {
-                // Create a stringified version of the configuration for the database
-                const configForDb = JSON.stringify({
-                    baseFrequency: harmonistConfig.baseFrequency,
-                    harmonicRatio: harmonistConfig.harmonicRatio,
-                    waveNumber: harmonistConfig.waveNumber,
-                    damping: harmonistConfig.damping,
-                    amplitude: harmonistConfig.amplitude,
-                    mode: harmonistConfig.mode,
-                    colorScheme: harmonistConfig.colorScheme,
-                    resolution: harmonistConfig.resolution,
-                    shaderCode: harmonistConfig.shaderCode
-                })
+                // Create a stringified version of the complete configuration for the database
+                const configForDb = JSON.stringify(completeConfig)
 
-                // Use the tRPC mutation to save the artwork
+                // Save to database using tRPC
                 createArt.mutate({
                     title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
-                    thumbnail: dataURL,
                     code: configForDb,
+                    thumbnail: dataURL,
                     isPublic: true,
                     harmonicParameters: {
                         baseFrequency: harmonistConfig.baseFrequency,
@@ -439,16 +574,15 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
                         amplitude: harmonistConfig.amplitude,
                         mode: harmonistConfig.mode,
                         colorScheme: harmonistConfig.colorScheme,
-                        resolution: harmonistConfig.resolution,
+                        resolution: harmonistConfig.resolution
                     }
                 })
             } catch (error) {
-                console.error("Error preparing data for tRPC mutation:", error)
-                alert('Your artwork has been shared to the Explore page!')
+                console.error("Error saving artwork to database:", error)
+                alert("There was an error saving your artwork to the database. It has been saved locally instead.")
             }
         } else {
-            // Show confirmation for non-authenticated users
-            alert('Your artwork has been shared to the Explore page! Sign in to save it to your account.')
+            alert("Your artwork has been shared to the Explore page! Login to save it to your account.")
         }
     }
 

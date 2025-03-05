@@ -10,75 +10,51 @@ datasource db {
     url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([name])
-}
-
+// User model that connects with Clerk
 model User {
-    id             String             @id @default(cuid())
-    email          String             @unique
-    name           String?
-    createdAt      DateTime           @default(now())
-    updatedAt      DateTime           @updatedAt
-    configurations ArtConfiguration[]
-    likes          Like[]
-    rooms          Room[]             @relation("RoomParticipants")
-    ownedRooms     Room[]             @relation("RoomOwner")
+    id              String             @id
+    email           String?            @unique
+    name            String?
+    profileImageUrl String?
+    createdAt       DateTime           @default(now())
+    updatedAt       DateTime           @updatedAt
+    configurations  ArtConfiguration[]
+    likes           Like[]
 }
 
+// Art configuration model for storing user creations
 model ArtConfiguration {
     id        String   @id @default(cuid())
     name      String
-    code      String
+    code      String // Using regular String for SQLite
     thumbnail String?
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
     userId    String
-    user      User     @relation(fields: [userId], references: [id])
+    user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
     likes     Like[]
     isPublic  Boolean  @default(false)
 
+    // Metadata for searching and filtering
+    tags          String? // Store as JSON string for SQLite
+    baseFrequency Float?
+    harmonicRatio Float?
+    mode          String?
+    colorScheme   String?
+
     @@index([userId])
+    @@index([isPublic])
+    @@index([createdAt])
 }
 
-model Room {
-    id            String    @id @default(cuid())
-    name          String
-    type          String // "BASIC", "PRO", "PREMIUM"
-    createdAt     DateTime  @default(now())
-    updatedAt     DateTime  @updatedAt
-    ownerId       String
-    owner         User      @relation("RoomOwner", fields: [ownerId], references: [id])
-    participants  User[]    @relation("RoomParticipants")
-    messages      Message[]
-    currentMusic  String? // YouTube video ID
-    currentConfig String? // Current art configuration code
-
-    @@index([ownerId])
-}
-
-model Message {
-    id        String   @id @default(cuid())
-    content   String
-    createdAt DateTime @default(now())
-    roomId    String
-    room      Room     @relation(fields: [roomId], references: [id])
-
-    @@index([roomId])
-}
-
+// Like model for tracking user likes
 model Like {
     id        String           @id @default(cuid())
     userId    String
     configId  String
     createdAt DateTime         @default(now())
-    user      User             @relation(fields: [userId], references: [id])
-    config    ArtConfiguration @relation(fields: [configId], references: [id])
+    user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+    config    ArtConfiguration @relation(fields: [configId], references: [id], onDelete: Cascade)
 
     @@unique([userId, configId])
     @@index([userId])

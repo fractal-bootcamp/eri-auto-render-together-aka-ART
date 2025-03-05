@@ -4,9 +4,10 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/
 // Define the schema for the art configuration
 const artConfigSchema = z.object({
     title: z.string(),
-    thumbnail: z.string(), // Base64 encoded image
+    thumbnail: z.string().optional(), // Base64 encoded image or URL
     code: z.string(), // JSON stringified configuration
     isPublic: z.boolean().default(true),
+    tags: z.string().optional(), // Store as JSON string for SQLite
     harmonicParameters: z.object({
         baseFrequency: z.number(),
         harmonicRatio: z.number(),
@@ -26,10 +27,24 @@ export const artRouter = createTRPCRouter({
             where: {
                 isPublic: true,
             },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                code: true,
+                thumbnail: true,
+                createdAt: true,
+                updatedAt: true,
+                userId: true,
+                isPublic: true,
+                baseFrequency: true,
+                harmonicRatio: true,
+                mode: true,
+                colorScheme: true,
                 user: {
                     select: {
+                        id: true,
                         name: true,
+                        email: true,
                     },
                 },
                 _count: {
@@ -46,11 +61,28 @@ export const artRouter = createTRPCRouter({
 
     // Get art configurations for the current user
     getMine: protectedProcedure.query(async ({ ctx }) => {
+        const userId = ctx.auth?.userId || ctx.userId;
+        if (!userId) {
+            throw new Error("User not authenticated");
+        }
+
         return ctx.db.artConfiguration.findMany({
             where: {
-                userId: ctx.userId,
+                userId: userId,
             },
-            include: {
+            select: {
+                id: true,
+                name: true,
+                code: true,
+                thumbnail: true,
+                createdAt: true,
+                updatedAt: true,
+                userId: true,
+                isPublic: true,
+                baseFrequency: true,
+                harmonicRatio: true,
+                mode: true,
+                colorScheme: true,
                 _count: {
                     select: {
                         likes: true,
@@ -71,10 +103,24 @@ export const artRouter = createTRPCRouter({
                 where: {
                     id: input.id,
                 },
-                include: {
+                select: {
+                    id: true,
+                    name: true,
+                    code: true,
+                    thumbnail: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    userId: true,
+                    isPublic: true,
+                    baseFrequency: true,
+                    harmonicRatio: true,
+                    mode: true,
+                    colorScheme: true,
                     user: {
                         select: {
+                            id: true,
                             name: true,
+                            email: true,
                         },
                     },
                     _count: {
@@ -90,13 +136,33 @@ export const artRouter = createTRPCRouter({
     create: protectedProcedure
         .input(artConfigSchema)
         .mutation(async ({ ctx, input }) => {
+            // Parse the code to extract metadata for searching and filtering
+            let parsedCode;
+            try {
+                parsedCode = JSON.parse(input.code);
+            } catch (error) {
+                console.error("Error parsing configuration code:", error);
+                parsedCode = {};
+            }
+
+            // Extract metadata from harmonicParameters
+            const { baseFrequency, harmonicRatio, mode, colorScheme } = input.harmonicParameters;
+            const userId = ctx.auth?.userId || ctx.userId;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
             return ctx.db.artConfiguration.create({
                 data: {
                     name: input.title,
                     thumbnail: input.thumbnail,
                     code: input.code,
                     isPublic: input.isPublic,
-                    userId: ctx.userId,
+                    userId: userId,
+                    baseFrequency,
+                    harmonicRatio,
+                    mode,
+                    colorScheme,
                 },
             });
         }),
@@ -105,11 +171,16 @@ export const artRouter = createTRPCRouter({
     toggleLike: protectedProcedure
         .input(z.object({ configId: z.string() }))
         .mutation(async ({ ctx, input }) => {
+            const userId = ctx.auth?.userId || ctx.userId;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
             // Check if the user has already liked this configuration
             const existingLike = await ctx.db.like.findUnique({
                 where: {
                     userId_configId: {
-                        userId: ctx.userId,
+                        userId: userId,
                         configId: input.configId,
                     },
                 },
@@ -127,7 +198,7 @@ export const artRouter = createTRPCRouter({
                 // If the like doesn't exist, create it
                 await ctx.db.like.create({
                     data: {
-                        userId: ctx.userId,
+                        userId: userId,
                         configId: input.configId,
                     },
                 });
@@ -135,10 +206,84 @@ export const artRouter = createTRPCRouter({
             }
         }),
 
+    // Check if the current user has liked a specific configuration
+    checkLiked: protectedProcedure
+        .input(z.object({ configId: z.string() }))
+        .query(async ({ ctx, input }) => {
+            const userId = ctx.auth?.userId || ctx.userId;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
+            const like = await ctx.db.like.findUnique({
+                where: {
+                    userId_configId: {
+                        userId: userId,
+                        configId: input.configId,
+                    },
+                },
+            });
+            return { liked: !!like };
+        }),
+
+    // Get liked artworks for the current user
+    getLiked: protectedProcedure.query(async ({ ctx }) => {
+        const userId = ctx.auth?.userId || ctx.userId;
+        if (!userId) {
+            throw new Error("User not authenticated");
+        }
+
+        const likes = await ctx.db.like.findMany({
+            where: {
+                userId: userId,
+            },
+            include: {
+                config: {
+                    select: {
+                        id: true,
+                        name: true,
+                        code: true,
+                        thumbnail: true,
+                        createdAt: true,
+                        updatedAt: true,
+                        userId: true,
+                        isPublic: true,
+                        baseFrequency: true,
+                        harmonicRatio: true,
+                        mode: true,
+                        colorScheme: true,
+                        user: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                            },
+                        },
+                        _count: {
+                            select: {
+                                likes: true,
+                            },
+                        },
+                    },
+                },
+            },
+            orderBy: {
+                createdAt: "desc",
+            },
+        });
+
+        return likes.map(like => like.config);
+    }),
+
     // Delete an art configuration
     delete: protectedProcedure
         .input(z.object({ id: z.string() }))
         .mutation(async ({ ctx, input }) => {
+            const userId = ctx.auth?.userId || ctx.userId;
+            if (!userId) {
+                throw new Error("User not authenticated");
+            }
+
             // Verify that the user owns this configuration
             const config = await ctx.db.artConfiguration.findUnique({
                 where: {
@@ -146,18 +291,11 @@ export const artRouter = createTRPCRouter({
                 },
             });
 
-            if (!config || config.userId !== ctx.userId) {
+            if (!config || config.userId !== userId) {
                 throw new Error("Unauthorized: You can only delete your own configurations");
             }
 
-            // Delete all likes associated with this configuration
-            await ctx.db.like.deleteMany({
-                where: {
-                    configId: input.id,
-                },
-            });
-
-            // Delete the configuration
+            // Delete the configuration (likes will be cascade deleted due to our schema)
             return ctx.db.artConfiguration.delete({
                 where: {
                     id: input.id,
