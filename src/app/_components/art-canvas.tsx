@@ -2,10 +2,12 @@
 
 import type React from "react"
 
-import { useRef, useEffect, useState } from "react"
+import { useRef, useEffect, useState, useCallback } from "react"
 import * as THREE from "three"
 import { Button } from "@/components/ui/button"
 import { Download, Share2, RefreshCw, ZoomIn, ZoomOut, Maximize2 } from "lucide-react"
+import { api } from "~/trpc/react"
+import { useUser } from "@clerk/nextjs"
 
 // Define the HarmonistConfig type for better type safety
 interface HarmonistConfig {
@@ -49,6 +51,20 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             resolution: 256,
         },
     )
+
+    // Get the current user
+    const { user, isSignedIn } = useUser()
+
+    // Setup tRPC mutation
+    const createArt = api.art.create.useMutation({
+        onSuccess: () => {
+            alert('Your artwork has been shared to the Explore page and saved to your account!')
+        },
+        onError: (error) => {
+            console.error("Error saving artwork to database:", error)
+            alert('Failed to save artwork to your account, but it has been shared to the local Explore page.')
+        }
+    })
 
     // Update local state when props change, but avoid infinite loops
     useEffect(() => {
@@ -349,6 +365,91 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         link.href = dataURL
         link.download = `Chladni_Pattern_${harmonistConfig.baseFrequency}Hz_${Date.now()}.png`
         link.click()
+    }
+
+    const shareToExplore = () => {
+        if (!canvasRef.current || !rendererRef.current) return
+
+        // Render a frame
+        if (sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
+        }
+
+        // Get the data URL
+        const dataURL = canvasRef.current.toDataURL("image/png")
+
+        // Create a configuration based on the current state
+        const config = {
+            id: `harmonic_pattern_${Math.floor(Math.random() * 1000)}`,
+            title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
+            creator: "You",
+            timestamp: Date.now(),
+            likes: 0,
+            isLiked: false,
+            imageUrl: dataURL,
+            harmonic_parameters: {
+                base_frequency: harmonistConfig.baseFrequency,
+                harmonic_ratio: harmonistConfig.harmonicRatio,
+                wave_number: harmonistConfig.waveNumber,
+                damping: harmonistConfig.damping,
+                amplitude: harmonistConfig.amplitude,
+                mode: harmonistConfig.mode,
+                color_scheme: harmonistConfig.colorScheme,
+                resolution: harmonistConfig.resolution,
+            }
+        }
+
+        // Save to localStorage for non-authenticated users or as a backup
+        try {
+            const savedArtworks = JSON.parse(localStorage.getItem('sharedArtworks') || '[]')
+            const updatedArtworks = Array.isArray(savedArtworks) ? savedArtworks : [savedArtworks]
+            updatedArtworks.push(config)
+            localStorage.setItem('sharedArtworks', JSON.stringify(updatedArtworks))
+        } catch (error) {
+            console.error("Error saving artwork to localStorage:", error)
+        }
+
+        // If user is signed in, save to database using tRPC
+        if (isSignedIn && user) {
+            try {
+                // Create a stringified version of the configuration for the database
+                const configForDb = JSON.stringify({
+                    baseFrequency: harmonistConfig.baseFrequency,
+                    harmonicRatio: harmonistConfig.harmonicRatio,
+                    waveNumber: harmonistConfig.waveNumber,
+                    damping: harmonistConfig.damping,
+                    amplitude: harmonistConfig.amplitude,
+                    mode: harmonistConfig.mode,
+                    colorScheme: harmonistConfig.colorScheme,
+                    resolution: harmonistConfig.resolution,
+                    shaderCode: harmonistConfig.shaderCode
+                })
+
+                // Use the tRPC mutation to save the artwork
+                createArt.mutate({
+                    title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
+                    thumbnail: dataURL,
+                    code: configForDb,
+                    isPublic: true,
+                    harmonicParameters: {
+                        baseFrequency: harmonistConfig.baseFrequency,
+                        harmonicRatio: harmonistConfig.harmonicRatio,
+                        waveNumber: harmonistConfig.waveNumber,
+                        damping: harmonistConfig.damping,
+                        amplitude: harmonistConfig.amplitude,
+                        mode: harmonistConfig.mode,
+                        colorScheme: harmonistConfig.colorScheme,
+                        resolution: harmonistConfig.resolution,
+                    }
+                })
+            } catch (error) {
+                console.error("Error preparing data for tRPC mutation:", error)
+                alert('Your artwork has been shared to the Explore page!')
+            }
+        } else {
+            // Show confirmation for non-authenticated users
+            alert('Your artwork has been shared to the Explore page! Sign in to save it to your account.')
+        }
     }
 
     const exportConfig = () => {
@@ -734,6 +835,15 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
                 >
                     <Download className="mr-2 h-4 w-4" />
                     Export Image
+                </Button>
+                <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={shareToExplore}
+                    className="bg-[#f5f0e6] border-gray-400 hover:bg-[#e6e1d6]"
+                >
+                    <Share2 className="mr-2 h-4 w-4" />
+                    Share to Explore
                 </Button>
                 <Button
                     variant="outline"
