@@ -41,9 +41,9 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
     // Default harmonist configuration
     const [harmonistConfig, setHarmonistConfig] = useState<HarmonistConfig>(
         config ?? {
-            baseFrequency: 432,
+            baseFrequency: 52.8,
             harmonicRatio: 1.618,
-            waveNumber: 8,
+            waveNumber: 11,
             damping: 0.02,
             amplitude: 0.8,
             mode: "circular",
@@ -85,7 +85,7 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             75,
             canvasRef.current.clientWidth / canvasRef.current.clientHeight,
             0.1,
-            1000,
+            100,
         )
         camera.position.z = 1.2
         cameraRef.current = camera
@@ -367,98 +367,24 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
         link.click()
     }
 
-    const shareToExplore = () => {
-        if (!canvasRef.current || !rendererRef.current) return
+    // image URL ref 
+    const imgURL = canvasRef.current?.toDataURL("image/png")
 
-        // Render a frame
-        if (sceneRef.current && cameraRef.current) {
-            rendererRef.current.render(sceneRef.current, cameraRef.current)
-        }
 
-        // Get the data URL
-        const dataURL = canvasRef.current.toDataURL("image/png")
-
-        // Create a configuration based on the current state
-        const config = {
-            id: `harmonic_pattern_${Math.floor(Math.random() * 1000)}`,
-            title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
-            creator: "You",
-            timestamp: Date.now(),
-            likes: 0,
-            isLiked: false,
-            imageUrl: dataURL,
-            harmonic_parameters: {
-                base_frequency: harmonistConfig.baseFrequency,
-                harmonic_ratio: harmonistConfig.harmonicRatio,
-                wave_number: harmonistConfig.waveNumber,
-                damping: harmonistConfig.damping,
-                amplitude: harmonistConfig.amplitude,
-                mode: harmonistConfig.mode,
-                color_scheme: harmonistConfig.colorScheme,
-                resolution: harmonistConfig.resolution,
-            }
-        }
-
-        // Save to localStorage for non-authenticated users or as a backup
-        try {
-            const savedArtworks = JSON.parse(localStorage.getItem('sharedArtworks') || '[]')
-            const updatedArtworks = Array.isArray(savedArtworks) ? savedArtworks : [savedArtworks]
-            updatedArtworks.push(config)
-            localStorage.setItem('sharedArtworks', JSON.stringify(updatedArtworks))
-        } catch (error) {
-            console.error("Error saving artwork to localStorage:", error)
-        }
-
-        // If user is signed in, save to database using tRPC
-        if (isSignedIn && user) {
-            try {
-                // Create a stringified version of the configuration for the database
-                const configForDb = JSON.stringify({
-                    baseFrequency: harmonistConfig.baseFrequency,
-                    harmonicRatio: harmonistConfig.harmonicRatio,
-                    waveNumber: harmonistConfig.waveNumber,
-                    damping: harmonistConfig.damping,
-                    amplitude: harmonistConfig.amplitude,
-                    mode: harmonistConfig.mode,
-                    colorScheme: harmonistConfig.colorScheme,
-                    resolution: harmonistConfig.resolution,
-                    shaderCode: harmonistConfig.shaderCode
-                })
-
-                // Use the tRPC mutation to save the artwork
-                createArt.mutate({
-                    title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
-                    thumbnail: dataURL,
-                    code: configForDb,
-                    isPublic: true,
-                    harmonicParameters: {
-                        baseFrequency: harmonistConfig.baseFrequency,
-                        harmonicRatio: harmonistConfig.harmonicRatio,
-                        waveNumber: harmonistConfig.waveNumber,
-                        damping: harmonistConfig.damping,
-                        amplitude: harmonistConfig.amplitude,
-                        mode: harmonistConfig.mode,
-                        colorScheme: harmonistConfig.colorScheme,
-                        resolution: harmonistConfig.resolution,
-                    }
-                })
-            } catch (error) {
-                console.error("Error preparing data for tRPC mutation:", error)
-                alert('Your artwork has been shared to the Explore page!')
-            }
-        } else {
-            // Show confirmation for non-authenticated users
-            alert('Your artwork has been shared to the Explore page! Sign in to save it to your account.')
-        }
-    }
-
-    const exportConfig = () => {
-        // Create a configuration based on the current state
-        const config = {
+    // Create a configuration based on the current state
+    const currentConfig = {
+        id: user?.id,
+        title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
+        creator: user?.username || "Anonymous",
+        timestamp: Date.now(),
+        likes: 0,
+        isLiked: false,
+        imageUrl: imgURL,
+        harmonistConfig: {
             meta: {
                 id: `harmonic_pattern_${Math.floor(Math.random() * 1000)}`,
                 version: "1.0.0",
-                contributors: [{ id: "user_1", role: "harmonist" }],
+                contributors: [{ id: user?.id || "anonymous" }],
                 tags: ["chladni", "cymatics", "just-intonation"],
             },
             harmonic_parameters: {
@@ -486,14 +412,71 @@ export default function ArtCanvas({ config }: ArtCanvasProps) {
             },
             shader_code: harmonistConfig.shaderCode,
         }
+    }
 
+
+    // for image & configfile
+    const shareToExplore = () => {
+        if (!canvasRef.current || !rendererRef.current) return
+
+        // Render a frame
+        if (sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current)
+        }
+
+        // Get the data URL
+        const imgURL = canvasRef.current.toDataURL("image/png")
+
+        const id = `harmonic_pattern_${Math.floor(Math.random() * 1000)}`
+
+
+
+        // If user is signed in, save to database using tRPC
+        if (isSignedIn && user) {
+            try {
+                // Create a stringified version of the configuration for the database
+                const harmonistConfigForDb = JSON.stringify({
+                    ...currentConfig.harmonistConfig,
+                })
+
+                // Use the tRPC mutation to save the artwork
+                createArt.mutate({
+                    id: user?.id,
+                    title: `Pattern ${harmonistConfig.baseFrequency.toFixed(1)}Hz - ${harmonistConfig.mode}`,
+                    thumbnail: imgURL,
+                    code: harmonistConfigForDb,
+                    isPublic: true,
+                    harmonicParameters: {
+                        baseFrequency: harmonistConfig.baseFrequency,
+                        harmonicRatio: harmonistConfig.harmonicRatio,
+                        waveNumber: harmonistConfig.waveNumber,
+                        damping: harmonistConfig.damping,
+                        amplitude: harmonistConfig.amplitude,
+                        mode: harmonistConfig.mode,
+                        colorScheme: harmonistConfig.colorScheme,
+                        resolution: harmonistConfig.resolution,
+                    }
+                })
+            } catch (error) {
+                console.error("Error preparing data for tRPC mutation:", error)
+                alert('Your artwork has been shared to the Explore page!')
+            }
+        } else {
+            // Show confirmation for non-authenticated users
+            alert('Your artwork has been shared to the Explore page! Sign in to save to your account.')
+        }
+    }
+
+    const exportConfig = () => {
         // Convert to JSON and download
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(config, null, 2))
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(currentConfig, null, 2))
         const link = document.createElement("a")
         link.href = dataStr
         link.download = `Chladni_Config_${harmonistConfig.baseFrequency}Hz_${Date.now()}.json`
         link.click()
     }
+
+
 
     // Add drag functionality
     const [isDragging, setIsDragging] = useState(false)

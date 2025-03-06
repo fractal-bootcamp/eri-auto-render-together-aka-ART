@@ -3,6 +3,7 @@ import { createTRPCRouter, protectedProcedure, publicProcedure } from "~/server/
 
 // Define the schema for the art configuration
 const artConfigSchema = z.object({
+    id: z.string().optional(),
     title: z.string(),
     thumbnail: z.string(), // Base64 encoded image
     code: z.string(), // JSON stringified configuration
@@ -27,11 +28,6 @@ export const artRouter = createTRPCRouter({
                 isPublic: true,
             },
             include: {
-                user: {
-                    select: {
-                        name: true,
-                    },
-                },
                 _count: {
                     select: {
                         likes: true,
@@ -48,7 +44,7 @@ export const artRouter = createTRPCRouter({
     getMine: protectedProcedure.query(async ({ ctx }) => {
         return ctx.db.artConfiguration.findMany({
             where: {
-                userId: ctx.userId,
+                userClerkId: ctx.userId,
             },
             include: {
                 _count: {
@@ -72,11 +68,6 @@ export const artRouter = createTRPCRouter({
                     id: input.id,
                 },
                 include: {
-                    user: {
-                        select: {
-                            name: true,
-                        },
-                    },
                     _count: {
                         select: {
                             likes: true,
@@ -92,11 +83,12 @@ export const artRouter = createTRPCRouter({
         .mutation(async ({ ctx, input }) => {
             return ctx.db.artConfiguration.create({
                 data: {
+                    id: input.id,
                     name: input.title,
                     thumbnail: input.thumbnail,
                     code: input.code,
                     isPublic: input.isPublic,
-                    userId: ctx.userId,
+                    userClerkId: ctx.userId,
                 },
             });
         }),
@@ -108,8 +100,8 @@ export const artRouter = createTRPCRouter({
             // Check if the user has already liked this configuration
             const existingLike = await ctx.db.like.findUnique({
                 where: {
-                    userId_configId: {
-                        userId: ctx.userId,
+                    userClerkId_configId: {
+                        userClerkId: ctx.userId,
                         configId: input.configId,
                     },
                 },
@@ -125,9 +117,10 @@ export const artRouter = createTRPCRouter({
                 return { liked: false };
             } else {
                 // If the like doesn't exist, create it
+                console.log("!!!!\n\n\n\n\n!!!!!!\n\n\n\n!!!!!\n\n\n\nCreating like for user:", ctx.userId, "and config:", input.configId);
                 await ctx.db.like.create({
                     data: {
-                        userId: ctx.userId,
+                        userClerkId: ctx.userId,
                         configId: input.configId,
                     },
                 });
@@ -146,7 +139,7 @@ export const artRouter = createTRPCRouter({
                 },
             });
 
-            if (!config || config.userId !== ctx.userId) {
+            if (!config || config.userClerkId !== ctx.userId) {
                 throw new Error("Unauthorized: You can only delete your own configurations");
             }
 
