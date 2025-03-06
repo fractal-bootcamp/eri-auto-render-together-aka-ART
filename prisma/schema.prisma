@@ -6,81 +6,41 @@ generator client {
 }
 
 datasource db {
-    provider = "sqlite"
-    url      = env("DATABASE_URL")
-}
-
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    @@index([name])
+    provider  = "postgresql"
+    url       = env("DATABASE_URL")
+    directUrl = env("DATABASE_URL")
 }
 
 model User {
-    id             String             @id @default(cuid())
-    email          String             @unique
-    name           String?
-    createdAt      DateTime           @default(now())
-    updatedAt      DateTime           @updatedAt
-    configurations ArtConfiguration[]
-    likes          Like[]
-    rooms          Room[]             @relation("RoomParticipants")
-    ownedRooms     Room[]             @relation("RoomOwner")
+    id                String             @id @default(cuid())
+    createdAt         DateTime           @default(now())
+    updatedAt         DateTime           @updatedAt
+    clerkUserId       String?            @unique
+    artConfigurations ArtConfiguration[]
 }
 
 model ArtConfiguration {
-    id        String   @id @default(cuid())
-    name      String
-    code      String
-    thumbnail String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-    userId    String
-    user      User     @relation(fields: [userId], references: [id])
-    likes     Like[]
-    isPublic  Boolean  @default(false)
+    id          String   @id @default(cuid())
+    user        User?    @relation(fields: [userClerkId], references: [clerkUserId])
+    code        String
+    thumbnail   String?
+    createdAt   DateTime @default(now())
+    updatedAt   DateTime @updatedAt
+    userClerkId String
+    likes       Like[]
+    isPublic    Boolean  @default(false)
 
-    @@index([userId])
-}
-
-model Room {
-    id            String    @id @default(cuid())
-    name          String
-    type          String // "BASIC", "PRO", "PREMIUM"
-    createdAt     DateTime  @default(now())
-    updatedAt     DateTime  @updatedAt
-    ownerId       String
-    owner         User      @relation("RoomOwner", fields: [ownerId], references: [id])
-    participants  User[]    @relation("RoomParticipants")
-    messages      Message[]
-    currentMusic  String? // YouTube video ID
-    currentConfig String? // Current art configuration code
-
-    @@index([ownerId])
-}
-
-model Message {
-    id        String   @id @default(cuid())
-    content   String
-    createdAt DateTime @default(now())
-    roomId    String
-    room      Room     @relation(fields: [roomId], references: [id])
-
-    @@index([roomId])
+    @@index([userClerkId])
 }
 
 model Like {
-    id        String           @id @default(cuid())
-    userId    String
-    configId  String
-    createdAt DateTime         @default(now())
-    user      User             @relation(fields: [userId], references: [id])
-    config    ArtConfiguration @relation(fields: [configId], references: [id])
+    id          String           @id @default(cuid())
+    userClerkId String
+    configId    String
+    createdAt   DateTime         @default(now())
+    config      ArtConfiguration @relation(fields: [configId], references: [id])
 
-    @@unique([userId, configId])
-    @@index([userId])
+    @@unique([userClerkId, configId])
+    @@index([userClerkId])
     @@index([configId])
 }

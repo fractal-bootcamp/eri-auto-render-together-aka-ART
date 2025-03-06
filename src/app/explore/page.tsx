@@ -145,7 +145,7 @@ export default function ExplorePage() {
                 return {
                     id: dbArt.id,
                     title: dbArt.name,
-                    creator: dbArt.user?.name || "Unknown Artist",
+                    creator: dbArt.userClerkId || "Unknown Artist",
                     likes: dbArt._count?.likes || 0,
                     isLiked: likedArtworkIds.includes(dbArt.id),
                     imageUrl: dbArt.thumbnail || undefined,
